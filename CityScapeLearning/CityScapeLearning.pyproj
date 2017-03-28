@@ -23,7 +23,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="CityScapeLearning.py" />
-    <Compile Include="preprocess.py" />
+    <Compile Include="constructNetwork.py" />
+    <Compile Include="helpers.py" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
