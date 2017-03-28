@@ -12,6 +12,9 @@
     <OutputPath>.</OutputPath>
     <Name>CityScapeLearning</Name>
     <RootNamespace>CityScapeLearning</RootNamespace>
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <InterpreterId>{01f3e3ea-0baa-4b10-89de-9ad4c3fc6d2e}</InterpreterId>
+    <InterpreterVersion>3.5</InterpreterVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -23,8 +26,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="CityScapeLearning.py" />
-    <Compile Include="constructNetwork.py" />
+    <Compile Include="Network.py" />
     <Compile Include="helpers.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="{01f3e3ea-0baa-4b10-89de-9ad4c3fc6d2e}\3.5" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

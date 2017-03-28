@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<ProfilingTarget xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <ProjectTarget>
+    <TargetProject>efb10e83-d2a6-430c-942e-f410045c5e04</TargetProject>
+    <FriendlyName>CityScapeLearning</FriendlyName>
+  </ProjectTarget>
+</ProfilingTarget>
