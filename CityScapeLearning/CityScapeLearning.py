@@ -1,3 +1,7 @@
+"""
+    This is the main script of the project.    
+"""
+
 from __future__ import print_function
 
 import tensorflow as tf
@@ -19,5 +23,6 @@ with tf.Graph().as_default():
     test.add_FCLayer(layer_size = [512,512,16])
     #test.add_FCLayer(layer_size = [1024,16])
     test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=32)
+    test.add_MaxPool_Layer()
     a=0
 
