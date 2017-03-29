@@ -11,26 +11,56 @@ from os import listdir
 from Network import *
 from helpers import *
 
-batch_size = 10
+batch_size = 1
 
 def loss(logits,label):
     #num_labels = label._shape[-1].value
     #logits=tf.reshape(output,[logits._shape[0].value,-1,num_labels])
     #label = tf.reshape(label,[,-1])
-    return (tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=label,
+    return (tf.reduce_sum(
+                          tf.nn.softmax_cross_entropy_with_logits(
+                                                    labels=label,
                                                     logits=logits,
-                                                    dim=-1),
-                            name = 'Loss')
+                                                    dim=-1
+                                                    ),
+                          axis=[1,2],
+                          name = 'Loss'
+                          )
             )
 
 
-with tf.Graph().as_default():
-    test_input = tf.placeholder(shape=(batch_size,1920,1080,3),dtype=tf.float32)
+
+mainGraph = tf.Graph()
+
+#TODO : revoir comment est fait le reseau pour éviterr le OOM
+with mainGraph.as_default():
+    test_input = tf.Variable(initial_value=tf.random_normal(shape=[batch_size,1920,1080,3]),dtype=tf.float32)
     test = Network(test_input)
-    test.add_FCLayer(layer_size = [512,512,16])
-    #test.add_FCLayer(layer_size = [1024,16])
-    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=32)
-    test.add_MaxPool_Layer()
-    test.add_deconv_Layer(out_depth=3)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=64)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=64)
+    test.add_MaxPool_Layer(factor=2)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=128)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=128)
+    test.add_MaxPool_Layer(factor=2)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=256)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=256)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=256)
+    test.add_MaxPool_Layer(factor=2)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=512)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=512)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=512)
+    test.add_MaxPool_Layer(factor=2)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=512)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=512)
+    test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=512)
+    test.add_MaxPool_Layer(2)
+    test.add_conv_Layer(kernel_size=[1,1],padding="SAME",stride=[1,1,1,1],out_depth=4096)
+    test.add_conv_Layer(kernel_size=[1,1],padding="SAME",stride=[1,1,1,1],out_depth=4096)
+    test.add_conv_Layer(kernel_size=[1,1],padding="SAME",stride=[1,1,1,1],out_depth=1000,relu=False)
+    test.compute_output()
     a=0
 
+with tf.Session(graph=mainGraph) as sess:
+    sess.run(tf.global_variables_initializer())
+    out = sess.run(test.output)
+    print(out.get_shape())

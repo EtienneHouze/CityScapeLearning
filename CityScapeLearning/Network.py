@@ -30,13 +30,13 @@ class Network:
     """
     def __init__(self,input):
         self.input = input
-        self.batch_size = input._shape[0].value
+        self.batch_size = input.get_shape()[0].value
         self.layers = [self.input]
         self.variables = []
         self.number_of_layers = 0
 
     def add_FCLayer(self,layer_size,relu=True):
-        in_size = self.layers[-1]._shape.as_list()
+        in_size = self.layers[-1].get_shape().as_list()
         layer_size = [self.batch_size]+layer_size
         with tf.name_scope('FC_'+str(self.number_of_layers)):
             W = tf.Variable(initial_value=tf.random_normal(shape=in_size[1:]+layer_size),
@@ -65,11 +65,11 @@ class Network:
 
     def add_conv_Layer(self,kernel_size,stride,padding,out_depth,relu=True):
         with tf.name_scope('conv_'+str(self.number_of_layers)):
-            in_depth = self.layers[-1]._shape[-1].value
+            in_depth = self.layers[-1].get_shape()[-1].value
             F = tf.Variable(initial_value=tf.random_normal(shape=kernel_size+[in_depth]+[out_depth]),
                             dtype=tf.float32,
                             name = 'Filter_conv_'+str(self.number_of_layers))
-            b = tf.Variable(initial_value=tf.zeros(shape=self.layers[-1]._shape.as_list()[:-1]+[out_depth]),
+            b = tf.Variable(initial_value=tf.zeros(shape=self.layers[-1].get_shape().as_list()[:-1]+[out_depth]),
                             dtype = tf.float32,
                             name = 'Bias_conv_'+str(self.number_of_layers))
             if(relu):
@@ -130,7 +130,7 @@ class Network:
         with tf.name_scope('Output'):
             if(top1):
                 self.output = tf.argmax(tf.nn.softmax(self.layers[-1]),
-                                        axis = len(self.layers[-1]._shape.as_list())-1,
+                                        axis = len(self.layers[-1].get_shape().as_list())-1,
                                         name='output')
             else:
                 self.output = tf.nn.softmax(logits=self.layers[-1],
