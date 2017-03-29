@@ -35,7 +35,7 @@ class Network:
         self.variables = []
         self.number_of_layers = 0
 
-    def add_FCLayer(self,layer_size):
+    def add_FCLayer(self,layer_size,relu=True):
         in_size = self.layers[-1]._shape.as_list()
         layer_size = [self.batch_size]+layer_size
         with tf.name_scope('FC_'+str(self.number_of_layers)):
@@ -45,10 +45,17 @@ class Network:
             b = tf.Variable(initial_value=np.zeros(shape=layer_size),
                             dtype=tf.float32,
                             name='Bias_FC_'+str(self.number_of_layers))
-            h = tf.nn.relu(features=tf.tensordot(self.layers[-1],
-                                                 W,
-                                                 axes=len(in_size)-1)
-                           +b,
+            if(relu):
+                h = tf.nn.relu(features=tf.tensordot(self.layers[-1],
+                                                     W,
+                                                     axes=len(in_size)-1)
+                               +b,
+                               name='FC_'+str(self.number_of_layers))
+            else:
+                h = tf.add(tf.tensordot(self.layers[-1],
+                                        W,
+                                        axes = len(in_size)-1),
+                           b,
                            name='FC_'+str(self.number_of_layers))
             h.set_shape(layer_size)
             self.variables.append(W)
@@ -56,7 +63,7 @@ class Network:
             self.layers.append(h)
         self.number_of_layers += 1
 
-    def add_conv_Layer(self,kernel_size,stride,padding,out_depth):
+    def add_conv_Layer(self,kernel_size,stride,padding,out_depth,relu=True):
         with tf.name_scope('conv_'+str(self.number_of_layers)):
             in_depth = self.layers[-1]._shape[-1].value
             F = tf.Variable(initial_value=tf.random_normal(shape=kernel_size+[in_depth]+[out_depth]),
@@ -65,10 +72,18 @@ class Network:
             b = tf.Variable(initial_value=tf.zeros(shape=self.layers[-1]._shape.as_list()[:-1]+[out_depth]),
                             dtype = tf.float32,
                             name = 'Bias_conv_'+str(self.number_of_layers))
-            h = tf.nn.relu( tf.nn.conv2d(input = self.layers[-1],
-                                         filter=F,
-                                         strides=stride,
-                                         padding=padding)+b,
+            if(relu):
+                h = tf.nn.relu( tf.nn.conv2d(input = self.layers[-1],
+                                             filter=F,
+                                             strides=stride,
+                                             padding=padding)+b,
+                               name = 'Conv_'+str(self.number_of_layers))
+            else:
+                h = tf.add(tf.nn.conv2d(input = self.layers[-1],
+                                             filter=F,
+                                             strides=stride,
+                                             padding=padding),
+                           b,
                            name = 'Conv_'+str(self.number_of_layers))
             self.variables.append(F)
             self.variables.append(b)
@@ -85,11 +100,39 @@ class Network:
             self.layers.append(h)
         self.number_of_layers += 1
 
-    def add_deconv_Layer(self,factor=2):
+    def add_deconv_Layer(self,out_depth,relu=True):
         with tf.name_scope('Deconv_Layer_'+str(self.number_of_layers)):
+            in_depth = self.layers[-1]._shape[-1].value
+            out_height = 2 * self.layers[-1]._shape[1].value
+            out_width = 2 * self.layers[-1]._shape[2].value
+            F = tf.Variable(initial_value=tf.random_normal(shape=[3,3,out_depth,in_depth],
+                            dtype=tf.float32),
+                            name='Filter_Deconv_'+str(self.number_of_layers))
+            if(relu):
+                h = tf.nn.relu(tf.nn.conv2d_transpose(value = self.layers[-1],
+                                           filter=F,
+                                           output_shape = [self.batch_size,out_height, out_width, out_depth],
+                                           strides = [1, 2 , 2, 1],
+                                           padding = "SAME"),
+                               name = 'Deconv_Layer_'+str(self.number_of_layers))
+            else:
+                 h = tf.nn.conv2d_transpose(value = self.layers[-1],
+                                           filter=F,
+                                           output_shape = [self.batch_size,out_height, out_width, out_depth],
+                                           strides = [1, 2 , 2, 1],
+                                           padding = "SAME",
+                                           name = 'Deconv_Layer_'+str(self.number_of_layers))
+            self.variables.append(F)
+            self.layers.append(h)
+        self.number_of_layers += 1
 
-
-    def compute_output(self):
+    def compute_output(self,top1=False):
         with tf.name_scope('Output'):
-            self.output = tf.nn.softmax(logits=self.layers[-1])
+            if(top1):
+                self.output = tf.argmax(tf.nn.softmax(self.layers[-1]),
+                                        axis = len(self.layers[-1]._shape.as_list())-1,
+                                        name='output')
+            else:
+                self.output = tf.nn.softmax(logits=self.layers[-1],
+                                        name='output')
 
