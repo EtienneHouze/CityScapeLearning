@@ -148,3 +148,5 @@ class Network:
                     self.output = tf.nn.softmax(logits=self.layers[-1],
                                             name='output')
 
+
+
