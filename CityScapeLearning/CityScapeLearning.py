@@ -34,7 +34,7 @@ mainGraph = tf.Graph()
 
 #TODO : revoir comment est fait le reseau pour éviterr le OOM
 with mainGraph.as_default():
-    test_input = tf.Variable(initial_value=tf.random_normal(shape=[batch_size,1920,1080,3]),dtype=tf.float32)
+    test_input = tf.Variable(initial_value=tf.random_normal(shape=[batch_size,640,360,3]),dtype=tf.float32)
     test = Network(test_input)
     test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=64)
     test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=64)
@@ -54,13 +54,13 @@ with mainGraph.as_default():
     test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=512)
     test.add_conv_Layer(kernel_size=[3,3],padding="SAME",stride=[1,1,1,1],out_depth=512)
     test.add_MaxPool_Layer(2)
-    test.add_conv_Layer(kernel_size=[1,1],padding="SAME",stride=[1,1,1,1],out_depth=4096)
-    test.add_conv_Layer(kernel_size=[1,1],padding="SAME",stride=[1,1,1,1],out_depth=4096)
+    test.add_conv_Layer(kernel_size=[20,12],padding="SAME",stride=[1,1,1,1],out_depth=2048)
+    test.add_conv_Layer(kernel_size=[1,1],padding="SAME",stride=[1,1,1,1],out_depth=2048)
     test.add_conv_Layer(kernel_size=[1,1],padding="SAME",stride=[1,1,1,1],out_depth=1000,relu=False)
     test.compute_output()
-    a=0
 
-with tf.Session(graph=mainGraph) as sess:
-    sess.run(tf.global_variables_initializer())
-    out = sess.run(test.output)
-    print(out.get_shape())
+with tf.device("/gpu:0"):
+    with tf.Session(graph=mainGraph) as sess:
+        sess.run(tf.global_variables_initializer())
+        out = sess.run(test.output)
+        print(out.shape)

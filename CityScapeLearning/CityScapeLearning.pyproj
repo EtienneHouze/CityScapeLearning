@@ -26,6 +26,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="CityScapeLearning.py" />
+    <Compile Include="SegNet.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Network.py" />
     <Compile Include="helpers.py" />
   </ItemGroup>
