@@ -9,7 +9,17 @@ from os.path import join, basename, isfile, normpath
 from os import listdir, walk
 
 """
-    
+    Preprocessing method to set up a training set from the cityscape folders.
+    @ args :
+        - imdir : string, the path to the training folder
+        - labeldir : string, the path to the labels folder
+        - training_set_size : an int, the number of image to use in the training set
+        - imWW, imH : integers, the size of the cropped images we want to use in the training set.
+    @ returns :
+        - out : a list of tuples (imname,labelname,cornerX,cornerY), with :
+            imname : the path to the image
+            labelname : the path to the corresponding label
+            conerX, cornerY : the coordinates of the top left corner in the image to crop.
 """
 def produce_training_set(imdir,labeldir,training_set_size,imW=640,imH=360):
     filelist = []
@@ -26,6 +36,32 @@ def produce_training_set(imdir,labeldir,training_set_size,imW=640,imH=360):
     random_indices = np.random.randint(len(filelist),size=training_set_size)
     for i in random_indices:
         out.append(filelist[i]+[np.random.randint(2048-imW),np.random.randint(1024-imH)])
+    return out
+
+"""
+    Produces a mini batch of images and corresponding labels.
+    @ args :
+        - trainingset : a list of tuples, see the output of the produce_training_set mathod
+        - step : the step of the iteration inside the epoch
+        - imW,imH = size of the cropped images
+        - batch_size : length of a batch
+    @ returns :
+        - out : a list of pairs [im, label] with 
+            - im : a ImW*ImH*3 float32 np array, encoding the cropped image
+            - label : a ImW*ImH uint8 np array, encoding the labelled cropped image
+"""
+def produce_mini_batch(trainingset, step, imW=640, imH=360, batch_size = 10):
+    batch_list = trainingset[step:batch_size+step]
+    out = []
+    for data in batch_list:
+        Im = Image.open(data[0])
+        Im = Im.crop((data[2],data[3],data[2]+imW,data[3]+imH))
+        Label = Image.open(data[1])
+        Label = Label.crop((data[2],data[3],data[2]+imW,data[3]+imH))
+        im = np.asarray(Im,dtype=np.float32)
+        label = np.asarray(Label,dtype=np.uint8)
+        out.append([im,label])
+    return out
 
 """
     Computes a max_pool layer with a scale factor of 2

@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 import numpy as np
+import PIL
 from os.path import join
 from os import listdir
 from Network import *
@@ -13,8 +14,12 @@ from helpers import *
 
 batch_size = 1
 
-produce_training_set(imdir='D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train',labeldir='D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/train',training_set_size=1000)
-
+set = produce_training_set(imdir='D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train',labeldir='D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/train',training_set_size=1000)
+batch = produce_mini_batch(trainingset=set, step = 0)
+im = PIL.Image.fromarray(np.uint8(batch[0][0]))
+lab = PIL.Image.fromarray(np.uint8(batch[0][1]))
+im.show()
+lab.show()
 def loss(logits,label):
     #num_labels = label._shape[-1].value
     #logits=tf.reshape(output,[logits._shape[0].value,-1,num_labels])
