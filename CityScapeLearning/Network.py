@@ -137,39 +137,56 @@ class Network:
             self.number_of_layers += 1
 
     def compute_output(self,top1=False):
-        with tf.name_scope(self.name):
-            with tf.name_scope('Output'):
-                if(top1):
-                    self.output = tf.argmax(tf.nn.softmax(self.last_layer),
-                                            axis = len(self.last_layer.get_shape()[1:].as_list()),
-                                            name='output')
-                else:
-                    self.output = tf.nn.softmax(logits=self.last_layer,
-                                            name='output')
+        with tf.name_scope('Output'):
+            if(top1):
+                self.output = tf.argmax(tf.nn.softmax(self.last_layer),
+                                        axis = len(self.last_layer.get_shape()[1:].as_list()),
+                                        name='output')
+            else:
+                self.output = tf.nn.softmax(logits=self.last_layer,
+                                        name='output')
 
-
-    def add_complete_encoding_layer(self,depth,layerindex,bias=True,num_conv=2,ksize=3):
-        with tf.name_scope(self.name):
-            with tf.name_scope(self.name+'_encode_'+str(layerindex)):
-                F = []
+    """
+        Adds a complete encoding layer to the network
+        @ args :
+            - depth : the depth of the convolutional layer
+            - layerindex : the index for the layer, keep it clear !
+            - bias : a boolean specifying whether to use bias or not for the convolution
+            - num_conv = the number of convolutions to perform in the layer
+            - ksize = the size of the convolution filter
+            - pooling : a  boolean specifying whether to maxpool the output of this layer or not.
+        @ does :
+            - adds bias and filters variables to the list of encoding variables of the net
+            - updates self.last_layer with the output of this layer.
+            - appends the before pooling layer to the encoding_layers list of the net.
+    """
+    def add_complete_encoding_layer(self,depth,layerindex,bias=True,num_conv=2,ksize=3,pooling=True):
+        with tf.name_scope(self.name+'Variables'):
+            F = []
+            if (bias):
                 B = []
-                for i in range(num_conv):
-                    in_shape = self.last_layer.get_shape()[1:].as_list()
-                    F.append(tf.Variable(initial_value=tf.random_normal(shape=[ksize,ksize,in_shape[-1],depth],
-                                                                        dtype = tf.float32,
-                                                                        name = 'Filter_'+str(layerindex)+'-'+str(i)
-                                                                        )
-                                         )
-                             )
-                    if (bias):
-                        B.append(tf.Variable(initial_value=tf.zeros(in_shape[:-1]+[depth]),
-                                dtype = tf.float32,
-                                name = 'Bias_'+str(layerindex)+'_'+str(i))
-                                 )
-                    if (bias):
-                        self.last_layer = tf.nn.relu(tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")+B[i])
-                    else:
-                        self.last_layer = tf.nn.relu(tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")+B[i])
+        for i in range(num_conv):
+            in_shape = self.last_layer.get_shape()[1:].as_list()
+            with tf.name_scope(self.name+'Variables'):
+                F.append(tf.Variable(initial_value=tf.random_normal(shape=[ksize,ksize,in_shape[-1],depth],
+                                                                    dtype = tf.float32,
+                                                                    name = 'Filter_'+str(layerindex)+'-'+str(i)
+                                                                    )
+                                        )
+                            )
+                if (bias):
+                    B.append(tf.Variable(initial_value=tf.zeros(in_shape[:-1]+[depth]),
+                            dtype = tf.float32,
+                            name = 'Bias_'+str(layerindex)+'_'+str(i))
+                                )
+            with tf.name_scope(self.name+'_Encoding_'+str(layerindex)):
+                if (bias):
+                    self.last_layer = tf.nn.relu(tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")+B[i])
+                else:
+                    self.last_layer = tf.nn.relu(tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")+B[i])
                 self.encoding_layers.append(self.last_layer)
                 self.encoder_variables.extend(B+F)
+                if (pooling):
+                    self.last_layer = tf.nn.max_pool(self.last_layer,ksize=[1,2,2,1],strides=[1,2,2,1],padding="SAME",name = 'pooling')
+
 
