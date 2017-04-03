@@ -160,14 +160,13 @@ class Network:
             - updates self.last_layer with the output of this layer.
             - appends the before pooling layer to the encoding_layers list of the net.
     """
-    def add_complete_encoding_layer(self,depth,layerindex,bias=True,num_conv=2,ksize=3,pooling=True):
+    def add_complete_encoding_layer(self,depth,layerindex,bias=True,num_conv=2,ksize=3,pooling=True,relu=True):
+        in_shape = self.last_layer.get_shape()[1:].as_list()
         with tf.name_scope(self.name+'Variables'):
             F = []
             if (bias):
                 B = []
-        for i in range(num_conv):
-            in_shape = self.last_layer.get_shape()[1:].as_list()
-            with tf.name_scope(self.name+'Variables'):
+            for i in range(num_conv):
                 F.append(tf.Variable(initial_value=tf.random_normal(shape=[ksize,ksize,in_shape[-1],depth],
                                                                     dtype = tf.float32,
                                                                     name = 'Filter_'+str(layerindex)+'-'+str(i)
@@ -179,14 +178,26 @@ class Network:
                             dtype = tf.float32,
                             name = 'Bias_'+str(layerindex)+'_'+str(i))
                                 )
-            with tf.name_scope(self.name+'_Encoding_'+str(layerindex)):
+                in_shape[-1] = depth
+        with tf.name_scope(self.name+'_Encoding_'+str(layerindex)):
+            for i in range(num_conv):
+                in_shape = self.last_layer.get_shape()[1:].as_list()
                 if (bias):
-                    self.last_layer = tf.nn.relu(tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")+B[i])
+                    if(relu):
+                        self.last_layer = tf.nn.relu(tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")+B[i])
+                    else:
+                        self.last_layer = tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")+B[i]
                 else:
-                    self.last_layer = tf.nn.relu(tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")+B[i])
+                    if(relu):
+                        self.last_layer = tf.nn.relu(tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME"))
+                    else : 
+                        self.last_layer = tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")
                 self.encoding_layers.append(self.last_layer)
-                self.encoder_variables.extend(B+F)
-                if (pooling):
-                    self.last_layer = tf.nn.max_pool(self.last_layer,ksize=[1,2,2,1],strides=[1,2,2,1],padding="SAME",name = 'pooling')
+                if(bias):
+                    self.encoder_variables.extend(B+F)
+                else:
+                    self.encoder_variables.extend(F)
+            if (pooling):
+                self.last_layer = tf.nn.max_pool(self.last_layer,ksize=[1,2,2,1],strides=[1,2,2,1],padding="SAME",name = 'pooling')
 
 

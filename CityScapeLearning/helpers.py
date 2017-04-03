@@ -9,6 +9,9 @@ from os.path import join, basename, isfile, normpath
 from os import listdir, walk
 from labels import *
 
+
+num_labels = 35
+
 """
     Preprocessing method to set up a training set from the cityscape folders.
     @ args :
@@ -24,17 +27,18 @@ from labels import *
 """
 def produce_training_set(imdir,labeldir,training_set_size,imW=640,imH=360):
     filelist = []
+    imdir = normpath(imdir)
+    labeldir = normpath(labeldir)
     for path, subdirs, files in walk(imdir):
         for name in files:
             splt_name = str(basename(name)).split(sep="_")
             img_name = join(path,name)
             city = splt_name[0]
             label_name = join(normpath(labeldir),city,city+'_'+splt_name[1]+'_'+splt_name[2]+'_gtFine_labelIds.png')
-            print(label_name)
             if (isfile(label_name)):
                 filelist.append([img_name,label_name])
     out = []
-    random_indices = np.random.randint(len(filelist),size=training_set_size)
+    random_indices = np.random.randint(low=0,high=len(filelist),size=training_set_size)
     for i in random_indices:
         out.append(filelist[i]+[np.random.randint(2048-imW),np.random.randint(1024-imH)])
     return out
@@ -52,8 +56,9 @@ def produce_training_set(imdir,labeldir,training_set_size,imW=640,imH=360):
             - label : a ImW*ImH uint8 np array, encoding the labelled cropped image
 """
 def produce_mini_batch(trainingset, step, imW=640, imH=360, batch_size = 10):
-    batch_list = trainingset[step:batch_size+step]
-    out = []
+    batch_list = trainingset[batch_size*step:(step*batch_size)+batch_size]
+    out_im = []
+    out_lab = []
     for data in batch_list:
         Im = Image.open(data[0])
         Im = Im.crop((data[2],data[3],data[2]+imW,data[3]+imH))
@@ -61,8 +66,10 @@ def produce_mini_batch(trainingset, step, imW=640, imH=360, batch_size = 10):
         Label = Label.crop((data[2],data[3],data[2]+imW,data[3]+imH))
         im = np.asarray(Im,dtype=np.float32)
         label = np.asarray(Label,dtype=np.uint8)
-        out.append([im,label])
-    return out
+        label_one_hot = np.eye(num_labels)[label]
+        out_im.append(im)
+        out_lab.append(label_one_hot)
+    return [out_im, out_lab]
 
 
 """
