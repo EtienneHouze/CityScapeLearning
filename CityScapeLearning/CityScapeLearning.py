@@ -19,7 +19,8 @@ batch = produce_mini_batch(trainingset=set, step = 0)
 im = PIL.Image.fromarray(np.uint8(batch[0][0]))
 lab = PIL.Image.fromarray(np.uint8(batch[0][1]))
 im.show()
-lab.show()
+#lab.show()
+show_labelled_image(batch[0][1])
 def loss(logits,label):
     #num_labels = label._shape[-1].value
     #logits=tf.reshape(output,[logits._shape[0].value,-1,num_labels])
@@ -72,4 +73,10 @@ mainGraph = tf.Graph()
 #        sess.run(tf.global_variables_initializer())
 #        out = sess.run(un)
 #        print(out.shape)
+
+#with mainGraph.as_default():
+#    test_input = tf.Variable(initial_value=tf.random_normal(shape=(batch_size,640,360,3)),dtype=tf.float32)
+#    test = Network(test_input)
+#    test.add_complete_encoding_layer(64,0)
+#    test.compute_output()
 

@@ -31,9 +31,10 @@ class Network:
     def __init__(self,input,name='net'):
         self.input = input
         self.batch_size = input.get_shape()[0].value
-        self.layers = [self.input]
-        self.variables = []
-        self.number_of_layers = 0
+        self.last_layer = self.input
+        self.encoding_layers = []
+        self.encoder_variables = []
+        self.decoder_variables = []
         self.name = name
 
     def add_FCLayer(self,layer_size,relu=True):
@@ -102,13 +103,11 @@ class Network:
     def add_MaxPool_Layer(self,factor=2):
         with tf.name_scope(self.name):
             with tf.name_scope('Max_Pool_'+str(self.number_of_layers)):
-                h = tf.nn.max_pool(self.layers[-1],
+                self.last_layer = tf.nn.max_pool(self.last_layer,
                                    ksize=[1,2,2,1],
                                    strides=[1,2,2,1],
                                    name='Max_Pool_Layer_'+str(self.number_of_layers),
                                    padding='SAME')
-                self.layers.append(h)
-            self.number_of_layers += 1
 
     def add_deconv_Layer(self,out_depth,relu=True):
         with tf.name_scope(self.name):
@@ -141,12 +140,36 @@ class Network:
         with tf.name_scope(self.name):
             with tf.name_scope('Output'):
                 if(top1):
-                    self.output = tf.argmax(tf.nn.softmax(self.layers[-1]),
-                                            axis = len(self.layers[-1].get_shape().as_list())-1,
+                    self.output = tf.argmax(tf.nn.softmax(self.last_layer),
+                                            axis = len(self.last_layer.get_shape()[1:].as_list()),
                                             name='output')
                 else:
-                    self.output = tf.nn.softmax(logits=self.layers[-1],
+                    self.output = tf.nn.softmax(logits=self.last_layer,
                                             name='output')
 
 
+    def add_complete_encoding_layer(self,depth,layerindex,bias=True,num_conv=2,ksize=3):
+        with tf.name_scope(self.name):
+            with tf.name_scope(self.name+'_encode_'+str(layerindex)):
+                F = []
+                B = []
+                for i in range(num_conv):
+                    in_shape = self.last_layer.get_shape()[1:].as_list()
+                    F.append(tf.Variable(initial_value=tf.random_normal(shape=[ksize,ksize,in_shape[-1],depth],
+                                                                        dtype = tf.float32,
+                                                                        name = 'Filter_'+str(layerindex)+'-'+str(i)
+                                                                        )
+                                         )
+                             )
+                    if (bias):
+                        B.append(tf.Variable(initial_value=tf.zeros(in_shape[:-1]+[depth]),
+                                dtype = tf.float32,
+                                name = 'Bias_'+str(layerindex)+'_'+str(i))
+                                 )
+                    if (bias):
+                        self.last_layer = tf.nn.relu(tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")+B[i])
+                    else:
+                        self.last_layer = tf.nn.relu(tf.nn.conv2d(self.last_layer,F[i],strides=[1,1,1,1],padding="SAME")+B[i])
+                self.encoding_layers.append(self.last_layer)
+                self.encoder_variables.extend(B+F)
 

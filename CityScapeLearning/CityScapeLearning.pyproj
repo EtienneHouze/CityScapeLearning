@@ -26,6 +26,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="CityScapeLearning.py" />
+    <Compile Include="labels.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="SegNet.py">
       <SubType>Code</SubType>
     </Compile>

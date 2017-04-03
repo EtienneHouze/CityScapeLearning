@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 from os.path import join, basename, isfile, normpath
 from os import listdir, walk
+from labels import *
 
 """
     Preprocessing method to set up a training set from the cityscape folders.
@@ -62,6 +63,23 @@ def produce_mini_batch(trainingset, step, imW=640, imH=360, batch_size = 10):
         label = np.asarray(Label,dtype=np.uint8)
         out.append([im,label])
     return out
+
+
+"""
+    Shows the colored image according to the labels.
+    @ args :
+        - image : a imW*imH np array, containing labels for every pixel
+    @ shows :
+        - the colored image, with coloring done according to the labels define in the .py file.
+"""
+def show_labelled_image(image):
+    out_view = np.zeros(shape=(image.shape[0],image.shape[1],3))
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            lab = id2label[image[i,j]]
+            out_view[i,j,:] = lab.color
+    I = Image.fromarray(np.uint8(out_view))
+    I.show()
 
 """
     Computes a max_pool layer with a scale factor of 2
