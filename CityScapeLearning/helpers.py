@@ -8,6 +8,7 @@ from PIL import Image
 from os.path import join, basename, isfile, normpath
 from os import listdir, walk
 from labels import *
+import random
 
 
 num_labels = 35
@@ -25,7 +26,49 @@ num_labels = 35
             labelname : the path to the corresponding label
             conerX, cornerY : the coordinates of the top left corner in the image to crop.
 """
-def produce_training_set(imdir,labeldir,training_set_size,imW=640,imH=360):
+#def produce_training_set(imdir,labeldir,training_set_size,imW=640,imH=360):
+#    filelist = []
+#    imdir = normpath(imdir)
+#    labeldir = normpath(labeldir)
+#    for path, subdirs, files in walk(imdir):
+#        for name in files:
+#            splt_name = str(basename(name)).split(sep="_")
+#            img_name = join(path,name)
+#            city = splt_name[0]
+#            label_name = join(normpath(labeldir),city,city+'_'+splt_name[1]+'_'+splt_name[2]+'_gtFine_labelIds.png')
+#            if (isfile(label_name)):
+#                filelist.append([img_name,label_name])
+#    out = []
+#    random_indices = np.random.randint(low=0,high=len(filelist),size=training_set_size)
+#    step = 0
+#    for i in random_indices:
+#        Im = Image.open(filelist[i][0])
+#        x = np.random.randint(2048-imW)
+#        y = np.random.randint(1024-imH)
+#        Im = Im.crop((x,y,x+imW,y+imH))
+#        im = np.asarray(Im,dtype=np.float32)
+#        Label = Image.open(filelist[i][1])
+#        Label = Label.crop((x,y,x+imW,y+imH))
+#        label = np.asarray(Label,dtype=np.uint8)
+#        #label_one_hot = np.eye(num_labels)[label]
+#        out.append([im,label])
+#        step += 1
+#        print(step)
+#        #out.append(filelist[i]+[np.random.randint(2048-imW),np.random.randint(1024-imH)])
+#    return (out)
+
+"""
+    Creates a folder containing cropped images.
+    @ args :
+        - imdir : directory of the training images
+        - labeldir : directory of the label images
+        - outdir : path to the folder where we want to write the new cropped images
+        - training_set_size : the number of images to write
+        - imW, imH : width and height of the cropping to perform
+    @ returns :
+        - nothing, simply writes images
+"""
+def produce_training_dir(imdir,labeldir,outdir,training_set_size,imW=640,imH=360):
     filelist = []
     imdir = normpath(imdir)
     labeldir = normpath(labeldir)
@@ -39,8 +82,41 @@ def produce_training_set(imdir,labeldir,training_set_size,imW=640,imH=360):
                 filelist.append([img_name,label_name])
     out = []
     random_indices = np.random.randint(low=0,high=len(filelist),size=training_set_size)
+    step = 0
     for i in random_indices:
-        out.append(filelist[i]+[np.random.randint(2048-imW),np.random.randint(1024-imH)])
+        Im = Image.open(filelist[i][0])
+        x = np.random.randint(2048-imW)
+        y = np.random.randint(1024-imH)
+        Im = Im.crop((x,y,x+imW,y+imH))
+        Label = Image.open(filelist[i][1])
+        Label = Label.crop((x,y,x+imW,y+imH))
+        Im.save(join(outdir,'_'+str(step)+'_im_.png'))
+        Label.save(join(outdir,'_'+str(step)+'_lab_.png'))
+        print(step)
+        step += 1
+    return
+
+
+"""
+    Produces a list of training images and labels.
+    @ args :
+        - traindir : path to the directory containing training images.
+        - trainsize : an integer, the size of the training set we want to use. Must be lower than the number of images in the folde
+    @ returns :
+        - out : a list of pairs [im,lab], with 
+            im : a 3D numpy array of the image
+            lab : a 2D numpy array of the dense labels
+"""
+def produce_training_set(traindir,trainsize):
+    indices = list(range(trainsize))
+    random.shuffle(indices)
+    out = []
+    for i in indices:
+        Im = Image.open(normpath(join(traindir,'_'+str(i)+'_im_.png')))
+        im = np.asarray(Im,dtype=np.float32)
+        Label = Image.open(join(traindir,'_'+str(i)+'_lab_.png'))
+        lab = np.asarray(Label,dtype=np.float32)
+        out.append([im,lab])
     return out
 
 """
@@ -60,15 +136,17 @@ def produce_mini_batch(trainingset, step, imW=640, imH=360, batch_size = 10):
     out_im = []
     out_lab = []
     for data in batch_list:
-        Im = Image.open(data[0])
-        Im = Im.crop((data[2],data[3],data[2]+imW,data[3]+imH))
-        Label = Image.open(data[1])
-        Label = Label.crop((data[2],data[3],data[2]+imW,data[3]+imH))
-        im = np.asarray(Im,dtype=np.float32)
-        label = np.asarray(Label,dtype=np.uint8)
-        label_one_hot = np.eye(num_labels)[label]
-        out_im.append(im)
-        out_lab.append(label_one_hot)
+        out_im.append(data[0])
+        out_lab.append(data[1])
+    #    Im = Image.open(data[0])
+    #    Im = Im.crop((data[2],data[3],data[2]+imW,data[3]+imH))
+    #    Label = Image.open(data[1])
+    #    Label = Label.crop((data[2],data[3],data[2]+imW,data[3]+imH))
+    #    im = np.asarray(Im,dtype=np.float32)
+    #    label = np.asarray(Label,dtype=np.uint8)
+    #    label_one_hot = np.eye(num_labels)[label]
+    #    out_im.append(im)
+    #    out_lab.append(label_one_hot)
     return [out_im, out_lab]
 
 
