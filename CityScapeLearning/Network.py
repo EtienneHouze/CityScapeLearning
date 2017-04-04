@@ -198,6 +198,7 @@ class Network:
                     self.encoder_variables.extend(B+F)
                 else:
                     self.encoder_variables.extend(F)
+                self.last_layer = tf.layers.batch_normalization(self.last_layer)
             self.encoding_layers.append(self.last_layer)
             if (pooling):
                 self.last_layer = tf.nn.max_pool(self.last_layer,ksize=[1,2,2,1],strides=[1,2,2,1],padding="SAME",name = 'pooling')
@@ -227,11 +228,11 @@ class Network:
                                         )
                             )
                 if (bias):
-                    B.append(tf.Variable(initial_value=tf.random_uniform(in_shape[:-1]*2+[depth],
+                    B.append(tf.Variable(initial_value=tf.random_uniform([in_shape[0],2*in_shape[1],2*in_shape[2],depth],
                                                                          minval=-1,
                                                                          maxval=1),
                             dtype = tf.float32,
-                            name = 'Bias_'+str(layerindex)+'_'+str(i))
+                            name = 'Bias_'+str(corresponding_encoding)+'_'+str(i))
                                 )
         with tf.name_scope('Decoding_'+str(corresponding_encoding)):
             #self.last_layer = tf.nn.conv2d_transpose(value = self.last_layer,
@@ -253,3 +254,4 @@ class Network:
                     self.decoder_variables.extend(B+F)
                 else:
                     self.decoder_variables.extend(F)
+                self.last_layer = tf.layers.batch_normalization(self.last_layer)
