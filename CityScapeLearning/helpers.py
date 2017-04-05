@@ -161,7 +161,10 @@ def show_labelled_image(image,title=None):
     out_view = np.zeros(shape=(image.shape[0],image.shape[1],3))
     for i in range(image.shape[0]):
         for j in range(image.shape[1]):
-            lab = id2label[image[i,j]]
+            if (image[i,j]==num_labels-1):
+                lab = id2label[-1]
+            else:
+                lab = id2label[image[i,j]]
             out_view[i,j,:] = lab.color
     I = Image.fromarray(np.uint8(out_view))
     I.show(title=title)

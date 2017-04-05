@@ -2,8 +2,11 @@ from __future__ import print_function, division, absolute_import
 
 import tensorflow as tf
 import numpy as np
+import helpers
 
-"""
+
+class Network:
+    """
     Defines the Network.
     Contains various methods to add different layers, intended to be as configurable and general as possible. 
 
@@ -19,16 +22,14 @@ import numpy as np
             - add_FCLayer : add a full connected neural layer at the end of the net
             - add_conv_Layer : add a convolution layer at the end of the net
             - compute_output : compute the output of the network by applying the softmax function to its last layer.
-"""
-class Network:
-     
     """
+    def __init__(self,input,name='net'):
+        """
         Initialization of the network.
         Args :
             - input : a tensor of the inputs of the network
        
-    """
-    def __init__(self,input,name='net'):
+        """
         self.input = input
         self.batch_size = input.get_shape()[0].value
         self.last_layer = self.input
@@ -38,6 +39,9 @@ class Network:
         self.name = name
 
     def add_FCLayer(self,layer_size,relu=True):
+        """
+            Deprecated
+        """
         in_size = self.layers[-1].get_shape().as_list()
         layer_size = [self.batch_size]+layer_size
         with tf.name_scope(self.name):
@@ -68,6 +72,9 @@ class Network:
 
 
     def add_conv_Layer(self,kernel_size,stride,padding,out_depth,relu=True):
+        """
+            Deprecated
+        """
         with tf.name_scope(self.name):
             with tf.name_scope('conv_'+str(self.number_of_layers)):
                 in_depth = self.layers[-1].get_shape()[-1].value
@@ -101,6 +108,9 @@ class Network:
             self.number_of_layers += 1
 
     def add_MaxPool_Layer(self,factor=2):
+        """
+            Deprecated
+        """
         with tf.name_scope(self.name):
             with tf.name_scope('Max_Pool_'+str(self.number_of_layers)):
                 self.last_layer = tf.nn.max_pool(self.last_layer,
@@ -110,6 +120,9 @@ class Network:
                                    padding='SAME')
 
     def add_deconv_Layer(self,out_depth,relu=True):
+        """
+            Deprecated
+        """
         with tf.name_scope(self.name):
             with tf.name_scope('Deconv_Layer_'+str(self.number_of_layers)):
                 in_depth = self.layers[-1]._shape[-1].value
@@ -138,37 +151,46 @@ class Network:
             self.number_of_layers += 1
 
     def compute_output(self,top1=True):
+        """
+            Computes the output of the network.
+            @ args :
+                - top1 : indicates whether to keep only the top1 prediction or not.
+            @ does :
+                - updates the output tensor of the network
+        """
         with tf.name_scope('Output'):
             if(top1):
                 self.output = tf.argmax(tf.nn.softmax(self.last_layer),
                                         axis = len(self.last_layer.get_shape()[1:].as_list()),
-                                        name='output')-1
+                                        name='output')
             else:
                 self.output = tf.nn.softmax(logits=self.last_layer,
                                         name='output')
 
-    """
+    
+    def add_complete_encoding_layer(self,depth,layerindex,bias=True,num_conv=2,ksize=[3,3],pooling=True,relu=True):
+        """
         Adds a complete encoding layer to the network
-        @ args :
-            - depth : the depth of the convolutional layer
-            - layerindex : the index for the layer, keep it clear !
-            - bias : a boolean specifying whether to use bias or not for the convolution
-            - num_conv = the number of convolutions to perform in the layer
-            - ksize = the size of the convolution filter
-            - pooling : a  boolean specifying whether to maxpool the output of this layer or not.
-        @ does :
-            - adds bias and filters variables to the list of encoding variables of the net
-            - updates self.last_layer with the output of this layer.
-            - appends the before pooling layer to the encoding_layers list of the net.
-    """
-    def add_complete_encoding_layer(self,depth,layerindex,bias=True,num_conv=2,ksize=3,pooling=True,relu=True):
+            @ args :
+                - depth : the depth of the convolutional layer
+                - layerindex : the index for the layer, keep it clear !
+                - bias : a boolean specifying whether to use bias or not for the convolution
+                - num_conv = the number of convolutions to perform in the layer
+                - ksize = the size of the convolution filter
+                - pooling : a  boolean specifying whether to maxpool the output of this layer or not.
+                - relu : indicates whether to use the relu function of the output or not.
+            @ does :
+                - adds bias and filters variables to the list of encoding variables of the net
+                - updates self.last_layer with the output of this layer.
+                - appends the before pooling layer to the encoding_layers list of the net.
+        """
         in_shape = self.last_layer.get_shape()[1:].as_list()
-        with tf.name_scope('Variables'):
+        with tf.name_scope('Variables_Encoding_'+str(layerindex)):
             F = []
             if (bias):
                 B = []
             for i in range(num_conv):
-                F.append(tf.Variable(initial_value=tf.truncated_normal(shape=[ksize,ksize,in_shape[-1],depth],
+                F.append(tf.Variable(initial_value=tf.truncated_normal(shape=[ksize[0],ksize[1],in_shape[-1],depth],
                                                                        stddev=10./depth,
                                                                     dtype = tf.float32,
                                                                     name = 'Filter_'+str(layerindex)+'_'+str(i)
@@ -203,24 +225,31 @@ class Network:
             if (pooling):
                 self.last_layer = tf.nn.max_pool(self.last_layer,ksize=[1,2,2,1],strides=[1,2,2,1],padding="SAME",name = 'pooling')
 
-    def add_complete_decoding_layer(self,corresponding_encoding,bias=False,num_conv=0,ksize=3):
+    def add_complete_decoding_layer(self,corresponding_encoding,bias=False,num_conv=0,ksize=3, init_weight = 0.5):
+        """
+            Appends a complete decoding layer to the network.
+            @ args :
+                - corresponding_encoding : the index of the encoding layer whose input will be used to compute the output, according to the CNN architecture.
+                - bias : whether to use bias or not
+                - num_conv : the number of convolutions to perform after the unpooling/fusion operation
+                - ksize : kernel size to use for the convolutions
+                - init_weight : the initial weight given to the layer coming from the corresponding encoding layer
+            @ does :
+                - updates the last_layer of the network
+                - adds the relevant variables to the decoder_variables list of the net
+        """
         in_shape = self.last_layer.get_shape().as_list()
-        #depth = self.encoding_layers[corresponding_encoding].get_shape()[-1].value
         depth = in_shape[-1]
-        with tf.name_scope('Variables'):
+        with tf.name_scope('Variables_Decoding_'+str(corresponding_encoding)):
             F = []
-            #base_filter = [[0,0.5,0],[0.5,1,0.5],[0,0.5,0]]
-            #base_filter_4D = np.zeros(shape=[3,3,depth,in_shape[-1]])
-            #for i in range(depth):
-            #    for j in range(in_shape[-1]):
-            #        base_filter_4D[:,:,i,j] = base_filter
-            deconv_filter = tf.Variable(initial_value=tf.truncated_normal(shape=[ksize,ksize,self.encoding_layers[corresponding_encoding].get_shape()[-1].value,depth],
+            deconv_filter = tf.Variable(initial_value=tf.truncated_normal(shape=[1,1,self.encoding_layers[corresponding_encoding].get_shape()[-1].value,depth],
                                                                           stddev=10./depth),
                                         dtype=tf.float32,
                                         name='Unpooling_Filter')
-            deconv_weights = tf.Variable(initial_value=tf.ones(shape = [2*in_shape[1],2*in_shape[2],depth]),
+            deconv_weights = tf.Variable(initial_value= init_weight * tf.ones(shape = [2*in_shape[1],2*in_shape[2],depth]),
                                          dtype = tf.float32,
-                                         name = 'Unpooling_Weights') 
+                                         name = 'Unpooling_Weights')
+            helpers.variable_summaries(deconv_weights)
             if (bias):
                 B=[]
             for i in range(num_conv):
@@ -239,12 +268,6 @@ class Network:
                             name = 'Bias_'+str(corresponding_encoding)+'_'+str(i))
                                 )
         with tf.name_scope('Decoding_'+str(corresponding_encoding)):
-            #self.last_layer = tf.nn.conv2d_transpose(value = self.last_layer,
-            #                                   filter=deconv_filter,
-            #                                   output_shape = [in_shape[0], 2*in_shape[1], 2*in_shape[2], depth],
-            #                                   strides = [1, 2 , 2, 1],
-            #                                   padding = "SAME",
-            #                                   name = 'Deconv_Layer_'+str(corresponding_encoding))
             self.last_layer = tf.image.resize_bilinear(self.last_layer,size=[ 2*in_shape[1], 2*in_shape[2]])
             self.encoding_layers[corresponding_encoding] = tf.nn.conv2d(self.encoding_layers[corresponding_encoding],deconv_filter,strides=[1,1,1,1],padding="SAME")
             self.last_layer = tf.add(self.last_layer,tf.multiply(self.encoding_layers[corresponding_encoding],deconv_weights))
