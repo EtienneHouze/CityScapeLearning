@@ -90,11 +90,11 @@ def build_CNN(graph,input):
     with graph.as_default():
         with tf.name_scope('CNN'):
                 net = Network(input)
-                net.add_complete_encoding_layer(depth=32,layerindex=0,pooling=True,bias=True,num_conv=3)
-                net.add_complete_encoding_layer(depth=64,layerindex=1,pooling=True,bias=True,num_conv=3)
-                net.add_complete_encoding_layer(depth=128,layerindex=2,num_conv=3,pooling=True,bias=True)
-                net.add_complete_encoding_layer(depth=256,layerindex=3,num_conv=3,pooling=True,bias=True)
-                net.add_complete_encoding_layer(depth=512,layerindex=4,num_conv=3,pooling=True,bias=True)
+                net.add_complete_encoding_layer(depth=64,layerindex=0,pooling=True,bias=False,num_conv=0)
+                net.add_complete_encoding_layer(depth=128,layerindex=1,pooling=True,bias=True,num_conv=3)
+                net.add_complete_encoding_layer(depth=256,layerindex=2,num_conv=3,pooling=True,bias=True)
+                net.add_complete_encoding_layer(depth=512,layerindex=3,num_conv=3,pooling=True,bias=True)
+                net.add_complete_encoding_layer(depth=1024,layerindex=4,num_conv=3,pooling=True,bias=True)
                 net.add_complete_encoding_layer(depth=35,layerindex=5,num_conv=1,pooling=False,bias=False,relu = False,ksize=[8,16])
                 net.add_complete_decoding_layer(corresponding_encoding=4,bias=False,num_conv=0)
                 net.add_complete_decoding_layer(corresponding_encoding=3,bias=False,num_conv=0,init_weight=0.4)
@@ -182,16 +182,20 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
         global_step = tf.Variable(initial_value=0,
                                   name = 'global_step',
                                   trainable = False)
-        #if (tf.equal(tf.mod(global_step,100),0)):
-        #    show_labelled_image(CNN.output[0])
-        #    show_labelled_image(labs[0])
+
+        #TODO : Faire marcher ce bout de code
+        #tf.cond((tf.mod(global_step,100) == 0),
+        #        show_labelled_image(CNN.output[0]),
+        #        show_labelled_image(labs[0]))
+            
+            
         with tf.name_scope('Learning'):
             with tf.name_scope('Loss'):
                 l = loss(logits=CNN.last_layer,label = labs)
             tf.summary.scalar(name='loss',tensor=l)
             train_step = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(loss = l,
-                                                                               global_step = global_step,
-                                                                               var_list= CNN.encoder_variables+CNN.decoder_variables)
+                                                                                global_step = global_step,
+                                                                                var_list= CNN.encoder_variables+CNN.decoder_variables)
         merged = tf.summary.merge_all()
 
 
@@ -215,4 +219,6 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
                     print(test_loss,i,epoch)
                     trainWriter.add_summary(summary, int(epoch*trainsize/batch_size) + i)
 
+
+train(log_dir='log/traintest/3',batch_size=5)
     

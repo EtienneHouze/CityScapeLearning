@@ -196,15 +196,15 @@ class Network:
                                                                     name = 'Filter_'+str(layerindex)+'_'+str(i)
                                                                     )
                                         )
-                with tf.name_scope('_Filter_'+str(i)):
-                    helpers.variable_summaries(new_filter)
+                #with tf.name_scope('_Filter_'+str(i)):
+                #    helpers.variable_summaries(new_filter)
                 F.append(new_filter)
                 if (bias):
                     new_bias = tf.Variable(initial_value=tf.random_uniform(minval=-1,maxval=1,shape=in_shape[:-1]+[depth]),
                             dtype = tf.float32,
                             name = 'Bias_'+str(layerindex)+'_'+str(i))
-                    with tf.name_scope('_Bias_'+str(i)):
-                        helpers.variable_summaries(new_bias)
+                    #with tf.name_scope('_Bias_'+str(i)):
+                    #    helpers.variable_summaries(new_bias)
                     B.append(new_bias)
                 in_shape[-1] = depth
         with tf.name_scope('Encoding_'+str(layerindex)):
@@ -253,7 +253,7 @@ class Network:
             deconv_weights = tf.Variable(initial_value= init_weight * tf.ones(shape = [2*in_shape[1],2*in_shape[2],depth]),
                                          dtype = tf.float32,
                                          name = 'Unpooling_Weights')
-            helpers.variable_summaries(deconv_weights)
+            #helpers.variable_summaries(deconv_weights)
             if (bias):
                 B=[]
             for i in range(num_conv):
