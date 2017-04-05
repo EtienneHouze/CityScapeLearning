@@ -157,14 +157,36 @@ def produce_mini_batch(trainingset, step, imW=640, imH=360, batch_size = 10):
     @ shows :
         - the colored image, with coloring done according to the labels define in the .py file.
 """
-def show_labelled_image(image):
+def show_labelled_image(image,title=None):
     out_view = np.zeros(shape=(image.shape[0],image.shape[1],3))
     for i in range(image.shape[0]):
         for j in range(image.shape[1]):
             lab = id2label[image[i,j]]
             out_view[i,j,:] = lab.color
     I = Image.fromarray(np.uint8(out_view))
-    I.show()
+    I.show(title=title)
+
+
+def variable_summaries(var):
+  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+  with tf.name_scope('summaries'):
+    mean = tf.reduce_mean(var)
+    tf.summary.scalar('mean', mean)
+    with tf.name_scope('stddev'):
+      stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar('stddev', stddev)
+    tf.summary.scalar('max', tf.reduce_max(var))
+    tf.summary.scalar('min', tf.reduce_min(var))
+    tf.summary.histogram('histogram', var)
+
+
+def convert_labelled_image(image):
+    out_view = np.zeros(shape=(image.shape[0],image.shape[1],3))
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            lab = id2label[image[i,j]]
+            out_view[i,j,:] = lab.color
+    return(out_view)
 
 """
     Computes a max_pool layer with a scale factor of 2

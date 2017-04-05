@@ -82,30 +82,35 @@ with mainGraph.as_default():
         test.add_complete_encoding_layer(depth=64,layerindex=1,pooling=True,bias=True)
         test.add_complete_encoding_layer(depth=128,layerindex=2,num_conv=3,pooling=True,bias=True)
         test.add_complete_encoding_layer(depth=256,layerindex=3,num_conv=3,pooling=True,bias=True)
-        test.add_complete_decoding_layer(corresponding_encoding=3,bias=True)
-        test.add_complete_decoding_layer(corresponding_encoding=2,bias=True)
-        test.add_complete_decoding_layer(corresponding_encoding=1,bias=True,num_conv=3)
-        test.add_complete_decoding_layer(corresponding_encoding=0,bias=False,num_conv=0)
         test.add_complete_encoding_layer(depth=35,layerindex=4,num_conv=1,pooling=False,bias=False,relu = False)
+        test.add_complete_decoding_layer(corresponding_encoding=3,bias=False)
+        test.add_complete_decoding_layer(corresponding_encoding=2,bias=False)
+        test.add_complete_decoding_layer(corresponding_encoding=1,bias=False,num_conv=0)
+        test.add_complete_decoding_layer(corresponding_encoding=0,bias=False,num_conv=0)
+        test.add_complete_encoding_layer(depth=35,layerindex=5,num_conv=1,pooling=False,bias=False,relu = False)
         test.compute_output(top1=True)
-    with tf.name_scope('Leaning'):
+    with tf.name_scope('Learning'):
         with tf.name_scope('Loss'):
             l = loss(logits=test.last_layer,label = test_labels)
         tf.summary.scalar(name='loss',tensor=l)
-        train_step = tf.train.MomentumOptimizer(learning_rate=0.00001,momentum=0.9).minimize(l,var_list=test.encoder_variables+test.decoder_variables)
-        merged = tf.summary.merge_all()
+        train_step = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(l,var_list=test.encoder_variables+test.decoder_variables)
+    merged = tf.summary.merge_all()
 
 with tf.Session(graph=mainGraph) as sess:
     train_set = produce_training_set(traindir='D:/EtienneData/train',trainsize=500)
     sess.run(tf.global_variables_initializer())
+    trainWriter = tf.summary.FileWriter('/log/11',sess.graph)
     for epoch in range(20):
         random.shuffle(train_set)
         for i in range(int(500/batch_size)):
             [images, labels] = produce_mini_batch(train_set,step = i,imW=512,imH=256,batch_size=batch_size)
-            _, out,test_layer,test_loss = sess.run((train_step, test.output,test.last_layer,l), feed_dict={test_input : images, test_labels : labels})
+            _, out,test_layer,test_loss, summary = sess.run((train_step, test.output,test.last_layer,l,merged), feed_dict={test_input : images, test_labels : labels})
             print(test_loss,i,epoch)
+            trainWriter.add_summary(summary, int(epoch*trainsize/batch_size) + i)
             if (i%100 == 0):
-                show_labelled_image(out[0])
-    trainWriter = tf.summary.FileWriter('/log/7',sess.graph)
+                show_labelled_image(out[0],title='output')
+                show_labelled_image(labels[0],title='label')
+
+    
     print(out.shape)
     sess.close()
