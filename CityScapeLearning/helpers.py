@@ -166,8 +166,8 @@ def show_labelled_image(image,title=None):
             else:
                 lab = id2label[image[i,j]]
             out_view[i,j,:] = lab.color
-    I = Image.fromarray(np.uint8(out_view))
-    I.show(title=title)
+    with tf.name_scope(title):
+        tf.summary.image(out_view)
 
 
 def variable_summaries(var):
