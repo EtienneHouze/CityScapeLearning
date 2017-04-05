@@ -3,6 +3,8 @@
 """
 
 from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
 
 import tensorflow as tf
 import numpy as np
@@ -88,8 +90,8 @@ def build_CNN(graph,input):
     with graph.as_default():
         with tf.name_scope('CNN'):
                 net = Network(input)
-                net.add_complete_encoding_layer(depth=3,layerindex=0,pooling=True,bias=True,num_conv=0)
-                net.add_complete_encoding_layer(depth=64,layerindex=1,pooling=True,bias=True)
+                net.add_complete_encoding_layer(depth=32,layerindex=0,pooling=True,bias=True,num_conv=3)
+                net.add_complete_encoding_layer(depth=64,layerindex=1,pooling=True,bias=True,num_conv=3)
                 net.add_complete_encoding_layer(depth=128,layerindex=2,num_conv=3,pooling=True,bias=True)
                 net.add_complete_encoding_layer(depth=256,layerindex=3,num_conv=3,pooling=True,bias=True)
                 net.add_complete_encoding_layer(depth=512,layerindex=4,num_conv=3,pooling=True,bias=True)
@@ -177,11 +179,19 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
                                          dtype = tf.int32)
     CNN = build_CNN(mainGraph,input=ins)
     with mainGraph.as_default():
+        global_step = tf.Variable(initial_value=0,
+                                  name = 'global_step',
+                                  trainable = False)
+        #if (tf.equal(tf.mod(global_step,100),0)):
+        #    show_labelled_image(CNN.output[0])
+        #    show_labelled_image(labs[0])
         with tf.name_scope('Learning'):
             with tf.name_scope('Loss'):
                 l = loss(logits=CNN.last_layer,label = labs)
             tf.summary.scalar(name='loss',tensor=l)
-            train_step = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(l,var_list=CNN.encoder_variables+CNN.decoder_variables)
+            train_step = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(loss = l,
+                                                                               global_step = global_step,
+                                                                               var_list= CNN.encoder_variables+CNN.decoder_variables)
         merged = tf.summary.merge_all()
 
 
@@ -191,9 +201,18 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
         for epoch in range(epochs):
             random.shuffle(train_set)
             for i in range(int(train_size/batch_size)):
-                [images, labels] = produce_mini_batch(train_set,step = i,imW=512,imH=256,batch_size=batch_size)
-                _, out,test_layer,test_loss, summary = sess.run((train_step, CNN.output,CNN.last_layer,l,merged), feed_dict={ins : images, labs : labels})
-                print(test_loss,i,epoch)
-                trainWriter.add_summary(summary, int(epoch*trainsize/batch_size) + i)
+                if (i ==0):
+                    [images, labels] = produce_mini_batch(train_set,step = i,imW=512,imH=256,batch_size=batch_size)
+                    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                    run_meta = tf.RunMetadata()
+                    _, out,test_layer,test_loss, summary = sess.run((train_step, CNN.output,CNN.last_layer,l,merged), feed_dict={ins : images, labs : labels})
+                    print(test_loss,i,epoch)
+                    trainWriter.add_run_metadata(run_meta,'step%d' % (int(epoch*trainsize/batch_size) + i))
+                    trainWriter.add_summary(summary, int(epoch*trainsize/batch_size) + i)
+                else :
+                    [images, labels] = produce_mini_batch(train_set,step = i,imW=512,imH=256,batch_size=batch_size)
+                    _, out,test_layer,test_loss, summary = sess.run((train_step, CNN.output,CNN.last_layer,l,merged), feed_dict={ins : images, labs : labels})
+                    print(test_loss,i,epoch)
+                    trainWriter.add_summary(summary, int(epoch*trainsize/batch_size) + i)
 
     

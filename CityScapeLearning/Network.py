@@ -190,18 +190,22 @@ class Network:
             if (bias):
                 B = []
             for i in range(num_conv):
-                F.append(tf.Variable(initial_value=tf.truncated_normal(shape=[ksize[0],ksize[1],in_shape[-1],depth],
+                new_filter = tf.Variable(initial_value=tf.truncated_normal(shape=[ksize[0],ksize[1],in_shape[-1],depth],
                                                                        stddev=10./depth,
                                                                     dtype = tf.float32,
                                                                     name = 'Filter_'+str(layerindex)+'_'+str(i)
                                                                     )
                                         )
-                            )
+                with tf.name_scope('_Filter_'+str(i)):
+                    helpers.variable_summaries(new_filter)
+                F.append(new_filter)
                 if (bias):
-                    B.append(tf.Variable(initial_value=tf.random_uniform(minval=-1,maxval=1,shape=in_shape[:-1]+[depth]),
+                    new_bias = tf.Variable(initial_value=tf.random_uniform(minval=-1,maxval=1,shape=in_shape[:-1]+[depth]),
                             dtype = tf.float32,
                             name = 'Bias_'+str(layerindex)+'_'+str(i))
-                                )
+                    with tf.name_scope('_Bias_'+str(i)):
+                        helpers.variable_summaries(new_bias)
+                    B.append(new_bias)
                 in_shape[-1] = depth
         with tf.name_scope('Encoding_'+str(layerindex)):
             for i in range(num_conv):
