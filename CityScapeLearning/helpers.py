@@ -183,6 +183,11 @@ def variable_summaries(var):
     tf.summary.histogram('histogram', var)
 
 
+def image_summaries(im,name='summary'):
+    with tf.name_scope(name):
+        tf.summary.image(tensor=tf.cast(x=im,dtype=tf.float32),name=name)
+
+
 def convert_labelled_image(image):
     out_view = np.zeros(shape=(image.shape[0],image.shape[1],3))
     for i in range(image.shape[0]):
