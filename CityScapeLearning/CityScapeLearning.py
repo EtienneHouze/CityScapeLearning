@@ -78,6 +78,9 @@ def loss(logits,label):
                           )
             )
 
+def total_loss(logits,label,beta=0.0005):
+    return loss(logits,label) + beta * tf.nn.l2_loss(logits)
+
 def build_CNN(graph,input):
     """
         Builds a fully convolutionnal neural network.
@@ -88,26 +91,25 @@ def build_CNN(graph,input):
             - net : a Network object containing the net, as described in the paper by J.Long et al.
     """
     with graph.as_default():
-        with tf.device('/gpu:0'):
-            with tf.name_scope('CNN'):
-                    net = Network(input)
-                    net.add_complete_encoding_layer(depth=32,layerindex=0,pooling=True,bias=False,num_conv=0)
-                    net.add_complete_encoding_layer(depth=64,layerindex=1,pooling=True,bias=True,num_conv=3,monitor=False)
-                    net.add_complete_encoding_layer(depth=128,layerindex=2,num_conv=3,pooling=True,bias=True)
-                    net.add_complete_encoding_layer(depth=256,layerindex=3,num_conv=3,pooling=True,bias=True)
-                    net.add_complete_encoding_layer(depth=512,layerindex=4,num_conv=3,pooling=True,bias=True)
-                    net.add_complete_encoding_layer(depth = 1024, layerindex=5,num_conv = 2, pooling = True, bias = True)
-                    net.add_complete_encoding_layer(depth=35,layerindex=6,num_conv=1,pooling=False,bias=False,relu = True,ksize=[4,8])
-                    #net.add_complete_decoding_layer(corresponding_encoding=6,num_conv=0,bias = False)
-                    net.add_complete_decoding_layer(corresponding_encoding=5,bias=False,num_conv=0, init_weight=0.5)
-                    net.add_complete_decoding_layer(corresponding_encoding=4,bias=False,num_conv=0,init_weight=0.5)
-                    net.add_complete_decoding_layer(corresponding_encoding=3,bias=False,num_conv=0,init_weight=0.3)
-                    net.add_complete_decoding_layer(corresponding_encoding=2,bias=False,num_conv=0,init_weight=0)
-                    net.add_complete_decoding_layer(corresponding_encoding=1,bias=False,num_conv=0,init_weight=0)
-                    net.add_complete_decoding_layer(corresponding_encoding=0,bias=False,num_conv=0,init_weight=0)
-                    net.add_complete_encoding_layer(depth=35,layerindex=5,num_conv=1,pooling=False,bias=False,ksize=[1,1],relu = False)
-                    net.compute_output(top1=True)
-            return net
+        with tf.name_scope('CNN'):
+                net = Network(input)
+                net.add_complete_encoding_layer(depth=32,layerindex=0,pooling=True,bias=False,num_conv=0)
+                net.add_complete_encoding_layer(depth=64,layerindex=1,pooling=True,bias=True,num_conv=3,monitor=False)
+                net.add_complete_encoding_layer(depth=128,layerindex=2,num_conv=3,pooling=True,bias=True)
+                net.add_complete_encoding_layer(depth=256,layerindex=3,num_conv=3,pooling=True,bias=True)
+                net.add_complete_encoding_layer(depth=512,layerindex=4,num_conv=3,pooling=True,bias=True)
+                net.add_complete_encoding_layer(depth = 1024, layerindex=5,num_conv = 2, pooling = True, bias = True)
+                net.add_complete_encoding_layer(depth=35,layerindex=6,num_conv=1,pooling=False,bias=False,relu = True,ksize=[4,8])
+                #net.add_complete_decoding_layer(corresponding_encoding=6,num_conv=0,bias = False)
+                net.add_complete_decoding_layer(corresponding_encoding=5,bias=False,num_conv=0, init_weight=0.5)
+                net.add_complete_decoding_layer(corresponding_encoding=4,bias=False,num_conv=0,init_weight=0.5)
+                net.add_complete_decoding_layer(corresponding_encoding=3,bias=False,num_conv=0,init_weight=0.3)
+                net.add_complete_decoding_layer(corresponding_encoding=2,bias=False,num_conv=0,init_weight=0.3)
+                net.add_complete_decoding_layer(corresponding_encoding=1,bias=False,num_conv=0,init_weight=0.3)
+                net.add_complete_decoding_layer(corresponding_encoding=0,bias=False,num_conv=0,init_weight=0)
+                #net.add_complete_encoding_layer(depth=35,layerindex=5,num_conv=1,pooling=False,bias=False,ksize=[1,1],relu = False)
+                net.compute_output(top1=True)
+        return net
 
 """
     mainGraph = tf.Graph()
@@ -196,9 +198,9 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
         image_summaries(tf.expand_dims(input = labs, axis = -1),name='labels') 
         with tf.name_scope('Learning'):
             with tf.name_scope('Loss'):
-                l = loss(logits=CNN.last_layer,label = labs)
+                l = total_loss(logits=CNN.last_layer,label = labs)
             tf.summary.scalar(name='loss',tensor=l)
-            train_step = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(loss = l,
+            train_step = tf.train.AdamOptimizer(learning_rate=0.01).minimize(loss = l,
                                                                                 global_step = global_step,
                                                                                 var_list = CNN.encoder_variables+CNN.decoder_variables)
         merged = tf.summary.merge_all()
@@ -206,25 +208,24 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
 
     with tf.Session(graph=mainGraph) as sess:
         trainWriter = tf.summary.FileWriter(logdir=log_dir,graph=sess.graph)
-        with tf.device('/gpu:0'):
-            sess.run(tf.global_variables_initializer())
-            for epoch in range(epochs):
-                random.shuffle(train_set)
-                for i in range(int(train_size/batch_size)):
-                    if (i ==0):
-                        [images, labels] = produce_mini_batch(train_set,step = i,imW=512,imH=256,batch_size=batch_size)
-                        run_options = tf.RunOptions(trace_level=tf.RunOptions.HARDWARE_TRACE)
-                        run_meta = tf.RunMetadata()
-                        _, out,test_layer,test_loss, summary = sess.run((train_step, CNN.output,CNN.last_layer,l,merged), feed_dict={ins : images, labs : labels})
-                        print(test_loss,i,epoch)
-                        trainWriter.add_run_metadata(run_meta,'step%d' % (int(epoch*trainsize/batch_size) + i))
-                        trainWriter.add_summary(summary, int(epoch*trainsize/batch_size) + i)
-                    else :
-                        [images, labels] = produce_mini_batch(train_set,step = i,imW=512,imH=256,batch_size=batch_size)
-                        _, out,test_layer,test_loss, summary = sess.run((train_step, CNN.output,CNN.last_layer,l,merged), feed_dict={ins : images, labs : labels})
-                        print(test_loss,i,epoch)
-                        trainWriter.add_summary(summary, int(epoch*trainsize/batch_size) + i)
+        sess.run(tf.global_variables_initializer())
+        for epoch in range(epochs):
+            random.shuffle(train_set)
+            for i in range(int(train_size/batch_size)):
+                if (i ==0):
+                    [images, labels] = produce_mini_batch(train_set,step = i,imW=512,imH=256,batch_size=batch_size)
+                    run_options = tf.RunOptions(trace_level=tf.RunOptions.HARDWARE_TRACE)
+                    run_meta = tf.RunMetadata()
+                    _, out,test_layer,test_loss, summary, step = sess.run((train_step, CNN.output,CNN.last_layer,l,merged, global_step), feed_dict={ins : images, labs : labels})
+                    print(test_loss,i,epoch)
+                    trainWriter.add_run_metadata(run_meta,'step%d' % step)
+                    trainWriter.add_summary(summary, step)
+                else :
+                    [images, labels] = produce_mini_batch(train_set,step = i,imW=512,imH=256,batch_size=batch_size)
+                    _, out,test_layer,test_loss, summary, step = sess.run((train_step, CNN.output,CNN.last_layer,l,merged, global_step), feed_dict={ins : images, labs : labels})
+                    print(test_loss,i,epoch)
+                    trainWriter.add_summary(summary, step)
 
 
-train(log_dir='log_day2/learning_rate=1e-4,init_stddev = 0.1, smaller_net',batch_size=10,epochs=50,train_size=3000)
+train(log_dir='log_day2/learning_rate=1e-2,init_stddev = 0.01,adam',batch_size=10,epochs=50,train_size=3000)
     

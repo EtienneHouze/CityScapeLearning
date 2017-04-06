@@ -191,7 +191,7 @@ class Network:
                 B = []
             for i in range(num_conv):
                 new_filter = tf.Variable(initial_value=tf.truncated_normal(shape=[ksize[0],ksize[1],in_shape[-1],depth],
-                                                                       stddev=0.1,
+                                                                       stddev=0.01,
                                                                     dtype = tf.float32,
                                                                     name = 'Filter_'+str(layerindex)+'_'+str(i)
                                                                     )
@@ -201,7 +201,7 @@ class Network:
                         helpers.variable_summaries(new_filter)
                 F.append(new_filter)
                 if (bias):
-                    new_bias = tf.Variable(initial_value=tf.random_uniform(minval=-1,maxval=1,shape=in_shape[:-1]+[depth]),
+                    new_bias = tf.Variable(initial_value=0*tf.random_uniform(minval=-1,maxval=1,shape=in_shape[:-1]+[depth]),
                             dtype = tf.float32,
                             name = 'Bias_'+str(layerindex)+'_'+str(i))
                     if (monitor) :
@@ -253,7 +253,7 @@ class Network:
                                                                           stddev=10./depth),
                                         dtype=tf.float32,
                                         name='Unpooling_Filter')
-            deconv_weight = tf.Variable(initial_value= init_weight,
+            deconv_weight = tf.Variable(initial_value= init_weight * tf.ones(shape=[2*in_shape[1],2*in_shape[2], depth]),
                                          dtype = tf.float32,
                                          name = 'Unpooling_Weight')
             #helpers.variable_summaries(deconv_weights)
