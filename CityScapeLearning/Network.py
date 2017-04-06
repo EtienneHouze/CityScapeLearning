@@ -191,7 +191,7 @@ class Network:
                 B = []
             for i in range(num_conv):
                 new_filter = tf.Variable(initial_value=tf.truncated_normal(shape=[ksize[0],ksize[1],in_shape[-1],depth],
-                                                                       stddev=0.01,
+                                                                       stddev=0.1,
                                                                     dtype = tf.float32,
                                                                     name = 'Filter_'+str(layerindex)+'_'+str(i)
                                                                     )
@@ -230,6 +230,7 @@ class Network:
                 self.last_layer = tf.layers.batch_normalization(self.last_layer)
             if (pooling):
                 self.last_layer = tf.nn.max_pool(self.last_layer,ksize=[1,2,2,1],strides=[1,2,2,1],padding="SAME",name = 'pooling')
+                self.last_layer = tf.layers.batch_normalization(self.last_layer)
 
     def add_complete_decoding_layer(self,corresponding_encoding,bias=False,num_conv=0,ksize=3, init_weight = 0.5):
         """
@@ -255,7 +256,6 @@ class Network:
             deconv_weight = tf.Variable(initial_value= init_weight,
                                          dtype = tf.float32,
                                          name = 'Unpooling_Weight')
-            deconv_weights = deconv_weight * tf.constant(value = tf.ones(shape = [2*in_shape[1],2*in_shape[2],depth]))
             #helpers.variable_summaries(deconv_weights)
             if (bias):
                 B=[]
@@ -276,10 +276,10 @@ class Network:
                                 )
         with tf.name_scope('Decoding_'+str(corresponding_encoding)):
             self.last_layer = tf.image.resize_bilinear(self.last_layer,size=[ 2*in_shape[1], 2*in_shape[2]])
-            self.last_layer /= tf.norm(self.last_layer)
+            self.last_layer = tf.nn.l2_normalize(self.last_layer,dim = -1)
             self.encoding_layers[corresponding_encoding] = tf.nn.conv2d(self.encoding_layers[corresponding_encoding],deconv_filter,strides=[1,1,1,1],padding="SAME")
-            self.encoding_layers[corresponding_encoding] /= tf.norm(self.encoding_layers[corresponding_encoding])
-            self.last_layer = tf.add(self.last_layer,tf.multiply(self.encoding_layers[corresponding_encoding],deconv_weights))
+            self.encoding_layers[corresponding_encoding] = tf.nn.l2_normalize(self.encoding_layers[corresponding_encoding],dim=-1)
+            self.last_layer = tf.add(self.last_layer,tf.multiply(self.encoding_layers[corresponding_encoding],deconv_weight))
             self.decoder_variables.append(deconv_weight)
             for i in range(num_conv):
                 if (bias):
