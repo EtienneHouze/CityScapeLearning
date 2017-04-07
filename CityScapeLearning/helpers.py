@@ -136,8 +136,8 @@ def produce_mini_batch(trainingset, step, imW=640, imH=360, batch_size = 10):
     out_im = []
     out_lab = []
     for data in batch_list:
-        out_im.append(data[0])
-        out_lab.append(data[1])
+        out_im.append(data[0][:imH,:imW,:])
+        out_lab.append(data[1][:imH,:imW])
     #    Im = Image.open(data[0])
     #    Im = Im.crop((data[2],data[3],data[2]+imW,data[3]+imH))
     #    Label = Image.open(data[1])

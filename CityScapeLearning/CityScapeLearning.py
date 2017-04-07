@@ -43,14 +43,14 @@ def perso_loss(logits,labs, num_classes):
                                     dtype = tf.float32)
     epsilon = tf.constant(value=1e-10)
     hist = 1 - tf.nn.softmax(hist)
-    labs = tf.one_hot(labs,num_classes)
+    labs = tf.one_hot(tf.cast(labs,dtype=tf.int32),num_classes)
     logits_flat = tf.reshape(logits,shape=[-1,num_classes])
     softmax = tf.nn.softmax(logits_flat)
     label_flat = tf.reshape(labs,shape=[-1,num_classes])
     return tf.reduce_mean(-tf.reduce_sum(tf.multiply(tf.multiply(label_flat,tf.log(softmax + epsilon)),hist),axis = 1))
 
 
-def loss(logits,label):
+def loss(logits,labs):
     """
         Compute the loss cross entropy loss
         @ args :
@@ -60,12 +60,12 @@ def loss(logits,label):
             - a scalar, the mean of the cross entropy loss of the batch
     """
     flat_logits=tf.reshape(logits,shape=[-1,num_labels])
-    flat_labels=tf.reshape(label,shape=[-1])
+    flat_labels=tf.reshape(labs,shape=[-1])
 
     return (tf.reduce_mean(
                           tf.nn.sparse_softmax_cross_entropy_with_logits(
-                                                    labels=label,
-                                                    logits=logits
+                                                    labels=flat_labels,
+                                                    logits=flat_logits
                                                     ),
                           name = 'Loss'
                           )
@@ -104,6 +104,73 @@ def build_CNN(input):
             net.compute_output(top1=True)
     return net
 
+def build_graph(input):
+    net = Network(input)
+    input_shape = input.get_shape().as_list()
+    W_conv11 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,input_shape[-1],32], stddev = 0.1, dtype = tf.float32)
+                           )
+    b_conv11 = tf.Variable(initial_value=0.1*tf.ones(shape=[32]),dtype=tf.float32)
+    h_conv11 = tf.nn.relu(tf.nn.conv2d(input,W_conv11,strides=[1,1,1,1],padding="SAME")+b_conv11)
+
+    W_conv12 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,32,64], stddev = 0.1, dtype = tf.float32)
+                           )
+    b_conv12 = tf.Variable(initial_value=0.1*tf.ones(shape=[64]),dtype=tf.float32)
+    h_conv12 = tf.nn.relu(tf.nn.conv2d(h_conv11,W_conv12,strides=[1,1,1,1],padding="SAME")+b_conv12)
+
+    h_pool1 = tf.nn.max_pool(h_conv12,ksize=[1,2,2,1], strides = [1,2,2,1], padding = "SAME")
+
+    W_conv21 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,64,128], stddev = 0.1, dtype = tf.float32)
+                           )
+    b_conv21 = tf.Variable(initial_value=0.1*tf.ones(shape=[128]),dtype=tf.float32)
+    h_conv21 = tf.nn.relu(tf.nn.conv2d(h_pool1,W_conv21,strides=[1,1,1,1],padding="SAME")+b_conv21)
+
+    W_conv22 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,128,256], stddev = 0.1, dtype = tf.float32)
+                           )
+    b_conv22 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+    h_conv22 = tf.nn.relu(tf.nn.conv2d(h_conv21,W_conv22,strides=[1,1,1,1],padding="SAME")+b_conv22)
+
+    h_pool2 = tf.nn.max_pool(h_conv22,ksize=[1,2,2,1], strides = [1,2,2,1], padding = "SAME")
+
+    W_conv31 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,256], stddev = 0.1, dtype = tf.float32)
+                           )
+    b_conv31 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+    h_conv31 = tf.nn.relu(tf.nn.conv2d(h_pool2,W_conv31,strides=[1,1,1,1],padding="SAME")+b_conv31)
+
+    W_conv32 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,256], stddev = 0.1, dtype = tf.float32)
+                           )
+    b_conv32 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+    h_conv32 = tf.nn.relu(tf.nn.conv2d(h_conv31,W_conv32,strides=[1,1,1,1],padding="SAME")+b_conv32)
+
+    h_up4 = tf.image.resize_bilinear(h_conv32,size=[int(input_shape[1]/2),int(input_shape[2]/2)])
+    h_merged4 = tf.concat([h_conv22,h_up4],axis=-1)
+
+    W_conv41 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,512,256], stddev = 0.1, dtype = tf.float32)
+                           )
+    b_conv41 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+    h_conv41 = tf.nn.relu(tf.nn.conv2d(h_merged4,W_conv41,strides=[1,1,1,1],padding="SAME")+b_conv41)
+
+    W_conv42 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,256], stddev = 0.1, dtype = tf.float32)
+                           )
+    b_conv42 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+    h_conv42 = tf.nn.relu(tf.nn.conv2d(h_conv41,W_conv42,strides=[1,1,1,1],padding="SAME")+b_conv42)
+
+    h_up5 = tf.image.resize_bilinear(h_conv42,size=[int(input_shape[1]),int(input_shape[2])])
+    h_merged5 = tf.concat([h_conv12,h_up5],axis=-1)
+
+    W_conv51 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256+64,256], stddev = 0.1, dtype = tf.float32)
+                           )
+    b_conv51 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+    h_conv51 = tf.nn.relu(tf.nn.conv2d(h_merged5,W_conv51,strides=[1,1,1,1],padding="SAME")+b_conv51)
+
+    W_conv52 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,num_labels], stddev = 0.1, dtype = tf.float32)
+                           )
+    b_conv52 = tf.Variable(initial_value=0.1*tf.ones(shape=[num_labels]),dtype=tf.float32)
+    output = tf.nn.conv2d(h_conv51,W_conv52,strides=[1,1,1,1],padding="SAME")+b_conv52
+
+    net.last_layer = output
+    net.compute_output(top1=True)
+
+    return net
 """
     mainGraph = tf.Graph()
     produce_training_dir(imdir="D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train",labeldir="D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/train",imW=512,imH=256,training_set_size=1000,outdir='D:/EtienneData/train')
@@ -172,11 +239,14 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
     
     with mainGraph.as_default():
         with tf.name_scope('Input'):
-            ins = tf.placeholder(shape=(batch_size,256,512,3),
+            ins = tf.placeholder(shape=(batch_size,128,256,3),
                                         dtype=tf.float32)
-            labs = tf.placeholder(shape=(batch_size,256,512),
+            labs = tf.placeholder(shape=(batch_size,128,256),
                                          dtype = tf.int32)
-        CNN = build_CNN(input=ins)
+            #ins = tf.image.resize_bilinear(ins,size=[128,256])
+            #labs = tf.image.resize_bilinear(labs, size = [128,256])
+        #CNN = build_CNN(input=ins)
+        CNN = build_graph(input=ins)
         global_step = tf.Variable(initial_value=0,
                                   name = 'global_step',
                                   trainable = False)
@@ -188,11 +258,10 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
             variable_summaries(tf.cast(CNN.output,dtype = tf.float32))
         with tf.name_scope('Learning'):
             with tf.name_scope('Loss'):
-                l = perso_loss(logits=CNN.last_layer,labs = labs,num_classes=num_labels)
+                l = loss(logits=CNN.last_layer,labs = labs)
                 tf.summary.scalar(name='loss',tensor=l)
-            train_step = tf.train.AdamOptimizer(learning_rate=0.01).minimize(loss = l,
-                                                                                global_step = global_step,
-                                                                                var_list = CNN.encoder_variables+CNN.decoder_variables)
+            train_step = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss = l,
+                                                                                global_step = global_step)
         merged = tf.summary.merge_all()
 
 
@@ -203,7 +272,7 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
             random.shuffle(train_set)
             for i in range(int(train_size/batch_size)):
                 if (i ==0):
-                    [images, labels] = produce_mini_batch(train_set,step = i,imW=512,imH=256,batch_size=batch_size)
+                    [images, labels] = produce_mini_batch(train_set,step = i,imW=256,imH=128,batch_size=batch_size)
                     run_options = tf.RunOptions(trace_level=tf.RunOptions.HARDWARE_TRACE)
                     run_meta = tf.RunMetadata()
                     _, out,test_layer,test_loss, summary, step = sess.run((train_step, CNN.output,CNN.last_layer,l,merged, global_step), feed_dict={ins : images, labs : labels})
@@ -211,11 +280,11 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
                     trainWriter.add_run_metadata(run_meta,'step%d' % step)
                     trainWriter.add_summary(summary, step)
                 else :
-                    [images, labels] = produce_mini_batch(train_set,step = i,imW=512,imH=256,batch_size=batch_size)
+                    [images, labels] = produce_mini_batch(train_set,step = i,imW=256,imH=128,batch_size=batch_size)
                     _, out,test_layer,test_loss, summary, step = sess.run((train_step, CNN.output,CNN.last_layer,l,merged, global_step), feed_dict={ins : images, labs : labels})
                     print(test_loss,i,epoch)
                     trainWriter.add_summary(summary, step)
 
 
-train(log_dir='log_day3/7',batch_size=5,epochs=50,train_size=3000)
+train(log_dir='log_day3/12',batch_size=5,epochs=50,train_size=3000)
     
