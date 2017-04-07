@@ -25,36 +25,29 @@ trainsize = 1000
 ##lab.show()
 #show_labelled_image(batch[0][1])
 
-def weighted_loss(logits, lab, num_classes, weights):
-    with tf.name_scope('loss_1'):
 
-        logits_flat = tf.reshape(logits, [-1, num_classes])
-
-        epsilon = tf.constant(value=1e-10)
-
-        # consturct one-hot label array
-        label_flat = tf.reshape(lab, [-1])
-
-        # should be [batch ,num_classes]
-        labels_hot = tf.one_hot(label_flat, depth=num_classes)
-
-        softmax = tf.nn.softmax(logits_flat) 
-        print()
-        cross_entropy = -tf.reduce_sum(tf.multiply(tf.multiply(labels_hot,tf.log(softmax + epsilon)), weights),axis=1)
-        #cross_entropy = -tf.reduce_sum(tf.multiply(labels_hot,tf.log(softmax + epsilon)),axis=1)
-        #batch wise mean
-        cross_entropy_mean=tf.reduce_mean(cross_entropy)
-
-    return cross_entropy_mean
-
-
-def perso_loss(logits,label):
-    label = tf.one_hot(label,num_labels)
+def perso_loss(logits,labs, num_classes):
+    """
+        Defines a weighted loss function.
+        @ args :
+            - logits = 4D tensor (batch*width*height*num_classes), the logits coded in the last dimension
+            - labs : 3D tensor containing the labels (batch*width*height)
+            - num_classes : number of classes
+        @ returns :
+            - a scalar, the mean across the batch of the weighted cross entropy
+    """
+    range = tf.constant([0.5,num_classes-0.5],dtype=tf.float32)
+    hist = tf.histogram_fixed_width(values = tf.cast(labs,dtype=tf.float32),
+                                    nbins = tf.constant(num_classes,dtype = tf.int32),
+                                    value_range = range,
+                                    dtype = tf.float32)
     epsilon = tf.constant(value=1e-10)
-    logits_flat = tf.reshape(logits,shape=[-1,num_labels])
+    hist = 1 - tf.nn.softmax(hist)
+    labs = tf.one_hot(labs,num_classes)
+    logits_flat = tf.reshape(logits,shape=[-1,num_classes])
     softmax = tf.nn.softmax(logits_flat)
-    label_flat = tf.reshape(label,shape=[-1,num_labels])
-    return tf.reduce_mean(-tf.reduce_sum(tf.multiply(label_flat,tf.log(softmax + epsilon)),axis = 1))
+    label_flat = tf.reshape(labs,shape=[-1,num_classes])
+    return tf.reduce_mean(-tf.reduce_sum(tf.multiply(tf.multiply(label_flat,tf.log(softmax + epsilon)),hist),axis = 1))
 
 
 def loss(logits,label):
@@ -81,7 +74,7 @@ def loss(logits,label):
 def total_loss(logits,label,beta=0.0005):
     return loss(logits,label) + beta * tf.nn.l2_loss(logits)
 
-def build_CNN(graph,input):
+def build_CNN(input):
     """
         Builds a fully convolutionnal neural network.
         @ args :
@@ -90,26 +83,26 @@ def build_CNN(graph,input):
         @ returns :
             - net : a Network object containing the net, as described in the paper by J.Long et al.
     """
-    with graph.as_default():
-        with tf.name_scope('CNN'):
-                net = Network(input)
-                net.add_complete_encoding_layer(depth=32,layerindex=0,pooling=True,bias=False,num_conv=0)
-                net.add_complete_encoding_layer(depth=64,layerindex=1,pooling=True,bias=True,num_conv=3,monitor=False)
-                net.add_complete_encoding_layer(depth=128,layerindex=2,num_conv=3,pooling=True,bias=True)
-                net.add_complete_encoding_layer(depth=256,layerindex=3,num_conv=3,pooling=True,bias=True)
-                net.add_complete_encoding_layer(depth=512,layerindex=4,num_conv=3,pooling=True,bias=True)
-                net.add_complete_encoding_layer(depth = 1024, layerindex=5,num_conv = 2, pooling = True, bias = True)
-                net.add_complete_encoding_layer(depth=35,layerindex=6,num_conv=1,pooling=False,bias=False,relu = True,ksize=[4,8])
-                #net.add_complete_decoding_layer(corresponding_encoding=6,num_conv=0,bias = False)
-                net.add_complete_decoding_layer(corresponding_encoding=5,bias=False,num_conv=0, init_weight=0.5)
-                net.add_complete_decoding_layer(corresponding_encoding=4,bias=False,num_conv=0,init_weight=0.5)
-                net.add_complete_decoding_layer(corresponding_encoding=3,bias=False,num_conv=0,init_weight=0.3)
-                net.add_complete_decoding_layer(corresponding_encoding=2,bias=False,num_conv=0,init_weight=0.3)
-                net.add_complete_decoding_layer(corresponding_encoding=1,bias=False,num_conv=0,init_weight=0.3)
-                net.add_complete_decoding_layer(corresponding_encoding=0,bias=False,num_conv=0,init_weight=0)
-                #net.add_complete_encoding_layer(depth=35,layerindex=5,num_conv=1,pooling=False,bias=False,ksize=[1,1],relu = False)
-                net.compute_output(top1=True)
-        return net
+    with tf.name_scope('CNN'):
+            net = Network(input)
+            net.add_complete_encoding_layer(depth=32,layerindex=0,pooling=True,bias=False,num_conv=1)
+            net.add_complete_encoding_layer(depth=64,layerindex=1,pooling=True,bias=True,num_conv=2,monitor=False)
+            net.add_complete_encoding_layer(depth=128,layerindex=2,num_conv=2,pooling=True,bias=True)
+            net.add_complete_encoding_layer(depth=256,layerindex=3,num_conv=2,pooling=True,bias=True)
+            net.add_complete_encoding_layer(depth=512,layerindex=4,num_conv=2,pooling=True,bias=True)
+            net.add_complete_encoding_layer(depth = 512, layerindex=5,num_conv = 2, pooling = True, bias = True)
+            net.add_complete_encoding_layer(depth=256,layerindex=6,num_conv=1,pooling=False,bias=False,relu = True,ksize=[4,8])
+            #net.add_complete_decoding_layer(corresponding_encoding=6,num_conv=0,bias = False)
+            net.add_complete_decoding_layer(corresponding_encoding=5,bias=True,num_conv=1, init_weight=0.5)
+            net.add_complete_encoding_layer(depth=128,layerindex=10,num_conv=1,bias=False,pooling=False)
+            net.add_complete_decoding_layer(corresponding_encoding=4,bias=True,num_conv=1,init_weight=0.5)
+            net.add_complete_decoding_layer(corresponding_encoding=3,bias=True,num_conv=1,init_weight=0.3)
+            net.add_complete_decoding_layer(corresponding_encoding=2,bias=False,num_conv=1,init_weight=0)
+            net.add_complete_decoding_layer(corresponding_encoding=1,bias=False,num_conv=1,init_weight=0)
+            net.add_complete_decoding_layer(corresponding_encoding=0,bias=False,num_conv=1,init_weight=0)
+            net.add_complete_encoding_layer(depth=35,layerindex=7,num_conv=1,pooling=False,bias=False,ksize=[5,5],relu = False)
+            net.compute_output(top1=True)
+    return net
 
 """
     mainGraph = tf.Graph()
@@ -183,23 +176,20 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
                                         dtype=tf.float32)
             labs = tf.placeholder(shape=(batch_size,256,512),
                                          dtype = tf.int32)
-    CNN = build_CNN(mainGraph,input=ins)
-    with mainGraph.as_default():
+        CNN = build_CNN(input=ins)
         global_step = tf.Variable(initial_value=0,
                                   name = 'global_step',
                                   trainable = False)
 
-        #TODO : Faire marcher ce bout de code
-        #tf.cond((tf.mod(global_step,100) == 0),
-        #        show_labelled_image(CNN.output[0]),
-        #        show_labelled_image(labs[0]))
-            
-        image_summaries(tf.expand_dims(input = CNN.output, axis = -1),name='output')
-        image_summaries(tf.expand_dims(input = labs, axis = -1),name='labels') 
+        with tf.name_scope('out_and_in'):    
+            image_summaries(tf.expand_dims(input = CNN.output, axis = -1),name='output')
+            image_summaries(tf.expand_dims(input = labs, axis = -1),name='labels') 
+            variable_summaries(tf.cast(labs,dtype=tf.float32))
+            variable_summaries(tf.cast(CNN.output,dtype = tf.float32))
         with tf.name_scope('Learning'):
             with tf.name_scope('Loss'):
-                l = total_loss(logits=CNN.last_layer,label = labs)
-            tf.summary.scalar(name='loss',tensor=l)
+                l = perso_loss(logits=CNN.last_layer,labs = labs,num_classes=num_labels)
+                tf.summary.scalar(name='loss',tensor=l)
             train_step = tf.train.AdamOptimizer(learning_rate=0.01).minimize(loss = l,
                                                                                 global_step = global_step,
                                                                                 var_list = CNN.encoder_variables+CNN.decoder_variables)
@@ -227,5 +217,5 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
                     trainWriter.add_summary(summary, step)
 
 
-train(log_dir='log_day2/learning_rate=1e-2,init_stddev = 0.01,adam',batch_size=10,epochs=50,train_size=3000)
+train(log_dir='log_day3/7',batch_size=5,epochs=50,train_size=3000)
     

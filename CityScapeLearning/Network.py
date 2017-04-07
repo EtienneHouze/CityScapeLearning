@@ -201,7 +201,7 @@ class Network:
                         helpers.variable_summaries(new_filter)
                 F.append(new_filter)
                 if (bias):
-                    new_bias = tf.Variable(initial_value=0*tf.random_uniform(minval=-1,maxval=1,shape=in_shape[:-1]+[depth]),
+                    new_bias = tf.Variable(initial_value=tf.random_uniform(minval=-1,maxval=1,shape=[depth]),
                             dtype = tf.float32,
                             name = 'Bias_'+str(layerindex)+'_'+str(i))
                     if (monitor) :
@@ -268,7 +268,7 @@ class Network:
                                         )
                             )
                 if (bias):
-                    B.append(tf.Variable(initial_value=tf.random_uniform([in_shape[0],2*in_shape[1],2*in_shape[2],depth],
+                    B.append(tf.Variable(initial_value=tf.random_uniform([depth],
                                                                          minval=-1,
                                                                          maxval=1),
                             dtype = tf.float32,
