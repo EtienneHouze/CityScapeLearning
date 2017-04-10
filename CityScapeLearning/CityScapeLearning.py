@@ -26,7 +26,7 @@ trainsize = 1000
 #show_labelled_image(batch[0][1])
 
 
-def perso_loss(logits,labs, num_classes):
+def perso_loss(logits,labs, weights):
     """
         Defines a weighted loss function.
         @ args :
@@ -36,18 +36,20 @@ def perso_loss(logits,labs, num_classes):
         @ returns :
             - a scalar, the mean across the batch of the weighted cross entropy
     """
-    range = tf.constant([0.5,num_classes-0.5],dtype=tf.float32)
-    hist = tf.histogram_fixed_width(values = tf.cast(labs,dtype=tf.float32),
-                                    nbins = tf.constant(num_classes,dtype = tf.int32),
-                                    value_range = range,
-                                    dtype = tf.float32)
+    #range = tf.constant([0.5,num_classes-0.5],dtype=tf.float32)
+    #hist = tf.histogram_fixed_width(values = tf.cast(labs,dtype=tf.float32),
+                                    #nbins = tf.constant(num_classes,dtype = tf.int32),
+                                    #value_range = range,
+                                    #dtype = tf.float32)
+    #with tf.name_scope('Weights'):
+    #    helpers.variable_summaries(weights)
     epsilon = tf.constant(value=1e-10)
-    hist = 1 - tf.nn.softmax(hist)
+    num_classes = len(weights)
     labs = tf.one_hot(tf.cast(labs,dtype=tf.int32),num_classes)
     logits_flat = tf.reshape(logits,shape=[-1,num_classes])
     softmax = tf.nn.softmax(logits_flat)
     label_flat = tf.reshape(labs,shape=[-1,num_classes])
-    return tf.reduce_mean(-tf.reduce_sum(tf.multiply(tf.multiply(label_flat,tf.log(softmax + epsilon)),hist),axis = 1))
+    return tf.reduce_mean(-tf.reduce_sum(tf.multiply(tf.multiply(label_flat,tf.log(softmax + epsilon)),weights),axis = 1))
 
 
 def loss(logits,labs):
@@ -90,85 +92,95 @@ def build_CNN(input):
             net.add_complete_encoding_layer(depth=128,layerindex=2,num_conv=2,pooling=True,bias=True)
             net.add_complete_encoding_layer(depth=256,layerindex=3,num_conv=2,pooling=True,bias=True)
             net.add_complete_encoding_layer(depth=512,layerindex=4,num_conv=2,pooling=True,bias=True)
-            net.add_complete_encoding_layer(depth = 512, layerindex=5,num_conv = 2, pooling = True, bias = True)
-            net.add_complete_encoding_layer(depth=256,layerindex=6,num_conv=1,pooling=False,bias=False,relu = True,ksize=[4,8])
+            #net.add_complete_encoding_layer(depth = 512, layerindex=5,num_conv = 2, pooling = True, bias = True)
+            net.add_complete_encoding_layer(depth=256,layerindex=4,num_conv=1,pooling=False,bias=False,relu = True,ksize=[8,4])
             #net.add_complete_decoding_layer(corresponding_encoding=6,num_conv=0,bias = False)
-            net.add_complete_decoding_layer(corresponding_encoding=5,bias=True,num_conv=1, init_weight=0.5)
-            net.add_complete_encoding_layer(depth=128,layerindex=10,num_conv=1,bias=False,pooling=False)
-            net.add_complete_decoding_layer(corresponding_encoding=4,bias=True,num_conv=1,init_weight=0.5)
-            net.add_complete_decoding_layer(corresponding_encoding=3,bias=True,num_conv=1,init_weight=0.3)
-            net.add_complete_decoding_layer(corresponding_encoding=2,bias=False,num_conv=1,init_weight=0)
-            net.add_complete_decoding_layer(corresponding_encoding=1,bias=False,num_conv=1,init_weight=0)
-            net.add_complete_decoding_layer(corresponding_encoding=0,bias=False,num_conv=1,init_weight=0)
+            net.add_complete_decoding_layer(corresponding_encoding=4,bias=True,num_conv=1, init_weight=0.5)
+            #net.add_complete_encoding_layer(depth=128,layerindex=10,num_conv=1,bias=False,pooling=False)
+            #net.add_complete_decoding_layer(corresponding_encoding=4,bias=True,num_conv=1,init_weight=0.5)
+            net.add_complete_decoding_layer(corresponding_encoding=3,bias=True,num_conv=1,init_weight=0.5)
+            net.add_complete_decoding_layer(corresponding_encoding=2,bias=False,num_conv=1,init_weight=0.5)
+            net.add_complete_decoding_layer(corresponding_encoding=1,bias=False,num_conv=1,init_weight=0.5)
+            net.add_complete_decoding_layer(corresponding_encoding=0,bias=False,num_conv=1,init_weight=0.5)
             net.add_complete_encoding_layer(depth=35,layerindex=7,num_conv=1,pooling=False,bias=False,ksize=[5,5],relu = False)
             net.compute_output(top1=True)
     return net
 
 def build_graph(input):
     net = Network(input)
-    input_shape = input.get_shape().as_list()
-    W_conv11 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,input_shape[-1],32], stddev = 0.1, dtype = tf.float32)
-                           )
-    b_conv11 = tf.Variable(initial_value=0.1*tf.ones(shape=[32]),dtype=tf.float32)
-    h_conv11 = tf.nn.relu(tf.nn.conv2d(input,W_conv11,strides=[1,1,1,1],padding="SAME")+b_conv11)
+    with tf.name_scope('Inputs'):
+        input_shape = input.get_shape().as_list()
 
-    W_conv12 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,32,64], stddev = 0.1, dtype = tf.float32)
-                           )
-    b_conv12 = tf.Variable(initial_value=0.1*tf.ones(shape=[64]),dtype=tf.float32)
-    h_conv12 = tf.nn.relu(tf.nn.conv2d(h_conv11,W_conv12,strides=[1,1,1,1],padding="SAME")+b_conv12)
+    with tf.name_scope('Conv_1 + Pool'):
 
-    h_pool1 = tf.nn.max_pool(h_conv12,ksize=[1,2,2,1], strides = [1,2,2,1], padding = "SAME")
+        W_conv11 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,input_shape[-1],32], stddev = 0.1, dtype = tf.float32)
+                               )
+        b_conv11 = tf.Variable(initial_value=0.1*tf.ones(shape=[32]),dtype=tf.float32)
+        h_conv11 = tf.nn.relu(tf.nn.conv2d(input,W_conv11,strides=[1,1,1,1],padding="SAME")+b_conv11,name = "Conv1")
 
-    W_conv21 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,64,128], stddev = 0.1, dtype = tf.float32)
-                           )
-    b_conv21 = tf.Variable(initial_value=0.1*tf.ones(shape=[128]),dtype=tf.float32)
-    h_conv21 = tf.nn.relu(tf.nn.conv2d(h_pool1,W_conv21,strides=[1,1,1,1],padding="SAME")+b_conv21)
+        W_conv12 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,32,64], stddev = 0.1, dtype = tf.float32)
+                               )
+        b_conv12 = tf.Variable(initial_value=0.1*tf.ones(shape=[64]),dtype=tf.float32)
+        h_conv12 = tf.nn.relu(tf.nn.conv2d(h_conv11,W_conv12,strides=[1,1,1,1],padding="SAME")+b_conv12, name = "Conv2")
 
-    W_conv22 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,128,256], stddev = 0.1, dtype = tf.float32)
-                           )
-    b_conv22 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
-    h_conv22 = tf.nn.relu(tf.nn.conv2d(h_conv21,W_conv22,strides=[1,1,1,1],padding="SAME")+b_conv22)
+        h_pool1 = tf.nn.max_pool(h_conv12,ksize=[1,2,2,1], strides = [1,2,2,1], padding = "SAME", name="Pooling")
 
-    h_pool2 = tf.nn.max_pool(h_conv22,ksize=[1,2,2,1], strides = [1,2,2,1], padding = "SAME")
+    with tf.name_scope("Conv_2 + Pool"):
+        W_conv21 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,64,128], stddev = 0.1, dtype = tf.float32)
+                               )
+        b_conv21 = tf.Variable(initial_value=0.1*tf.ones(shape=[128]),dtype=tf.float32)
+        h_conv21 = tf.nn.relu(tf.nn.conv2d(h_pool1,W_conv21,strides=[1,1,1,1],padding="SAME")+b_conv21, name = "Conv1")
 
-    W_conv31 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,256], stddev = 0.1, dtype = tf.float32)
-                           )
-    b_conv31 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
-    h_conv31 = tf.nn.relu(tf.nn.conv2d(h_pool2,W_conv31,strides=[1,1,1,1],padding="SAME")+b_conv31)
+        W_conv22 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,128,256], stddev = 0.1, dtype = tf.float32)
+                               )
+        b_conv22 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+        h_conv22 = tf.nn.relu(tf.nn.conv2d(h_conv21,W_conv22,strides=[1,1,1,1],padding="SAME")+b_conv22, name = "Conv2")
 
-    W_conv32 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,256], stddev = 0.1, dtype = tf.float32)
-                           )
-    b_conv32 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
-    h_conv32 = tf.nn.relu(tf.nn.conv2d(h_conv31,W_conv32,strides=[1,1,1,1],padding="SAME")+b_conv32)
+        h_pool2 = tf.nn.max_pool(h_conv22,ksize=[1,2,2,1], strides = [1,2,2,1], padding = "SAME", name = "Pooling")
 
-    h_up4 = tf.image.resize_bilinear(h_conv32,size=[int(input_shape[1]/2),int(input_shape[2]/2)])
-    h_merged4 = tf.concat([h_conv22,h_up4],axis=-1)
+    with tf.name_scope('Conv_3'):
+        W_conv31 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,256], stddev = 0.1, dtype = tf.float32)
+                               )
+        b_conv31 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+        h_conv31 = tf.nn.relu(tf.nn.conv2d(h_pool2,W_conv31,strides=[1,1,1,1],padding="SAME")+b_conv31, name = "Conv1")
 
-    W_conv41 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,512,256], stddev = 0.1, dtype = tf.float32)
-                           )
-    b_conv41 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
-    h_conv41 = tf.nn.relu(tf.nn.conv2d(h_merged4,W_conv41,strides=[1,1,1,1],padding="SAME")+b_conv41)
+        W_conv32 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,256], stddev = 0.1, dtype = tf.float32)
+                               )
+        b_conv32 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+        h_conv32 = tf.nn.relu(tf.nn.conv2d(h_conv31,W_conv32,strides=[1,1,1,1],padding="SAME")+b_conv32, name="Conv2")
 
-    W_conv42 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,256], stddev = 0.1, dtype = tf.float32)
-                           )
-    b_conv42 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
-    h_conv42 = tf.nn.relu(tf.nn.conv2d(h_conv41,W_conv42,strides=[1,1,1,1],padding="SAME")+b_conv42)
+    with tf.name_scope('Upscaling_1'):
+        h_up4 = tf.image.resize_bilinear(h_conv32,size=[int(input_shape[1]/2),int(input_shape[2]/2)])
+        h_merged4 = tf.concat([h_conv22,h_up4],axis=-1)
+    with tf.name_scope('Conv_4'):
+        W_conv41 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,512,256], stddev = 0.1, dtype = tf.float32)
+                               )
+        b_conv41 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+        h_conv41 = tf.nn.relu(tf.nn.conv2d(h_merged4,W_conv41,strides=[1,1,1,1],padding="SAME")+b_conv41, name = "Conv1")
 
-    h_up5 = tf.image.resize_bilinear(h_conv42,size=[int(input_shape[1]),int(input_shape[2])])
-    h_merged5 = tf.concat([h_conv12,h_up5],axis=-1)
+        W_conv42 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,256], stddev = 0.1, dtype = tf.float32)
+                               )
+        b_conv42 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+        h_conv42 = tf.nn.relu(tf.nn.conv2d(h_conv41,W_conv42,strides=[1,1,1,1],padding="SAME")+b_conv42, name = "Conv2")
 
-    W_conv51 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256+64,256], stddev = 0.1, dtype = tf.float32)
-                           )
-    b_conv51 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
-    h_conv51 = tf.nn.relu(tf.nn.conv2d(h_merged5,W_conv51,strides=[1,1,1,1],padding="SAME")+b_conv51)
+    with tf.name_scope('Upscaling_2'):
+        h_up5 = tf.image.resize_bilinear(h_conv42,size=[int(input_shape[1]),int(input_shape[2])])
+        h_merged5 = tf.concat([h_conv12,h_up5],axis=-1)
 
-    W_conv52 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,num_labels], stddev = 0.1, dtype = tf.float32)
-                           )
-    b_conv52 = tf.Variable(initial_value=0.1*tf.ones(shape=[num_labels]),dtype=tf.float32)
-    output = tf.nn.conv2d(h_conv51,W_conv52,strides=[1,1,1,1],padding="SAME")+b_conv52
+    with tf.name_scope('Conv_5'):
+        W_conv51 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256+64,256], stddev = 0.1, dtype = tf.float32)
+                               )
+        b_conv51 = tf.Variable(initial_value=0.1*tf.ones(shape=[256]),dtype=tf.float32)
+        h_conv51 = tf.nn.relu(tf.nn.conv2d(h_merged5,W_conv51,strides=[1,1,1,1],padding="SAME")+b_conv51, name = "Conv1")
 
-    net.last_layer = output
-    net.compute_output(top1=True)
+        W_conv52 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,256,num_labels], stddev = 0.1, dtype = tf.float32)
+                               )
+        b_conv52 = tf.Variable(initial_value=0.1*tf.ones(shape=[num_labels]),dtype=tf.float32)
+        output = tf.add(tf.nn.conv2d(h_conv51,W_conv52,strides=[1,1,1,1],padding="SAME"),b_conv52, name = "Conv2")
+
+    with tf.name_scope('Output'):
+        net.last_layer = output
+        net.compute_output(top1=True)
 
     return net
 """
@@ -223,7 +235,7 @@ def build_graph(input):
         sess.close()
 """
 
-def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/EtienneData/train', saver = None, log_dir = '/log'):
+def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/EtienneData/train', saver = None, log_dir = '/log',imW=256,imH=256, learning_rate=1e-4):
     """
        Defines an runs a training session.
        @ args :
@@ -234,45 +246,51 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
             - saver : path to the file to save the model
             - log_dir : path to the log folder for tensorboard info 
     """
-    train_set = produce_training_set(traindir = train_dir,trainsize = train_size)
+    train_set, histo = produce_training_set(traindir = train_dir,trainsize = train_size)
+    freqs = histo / np.sum(histo)
+    weights = np.power((1-freqs),3)
     mainGraph = tf.Graph()
     
     with mainGraph.as_default():
         with tf.name_scope('Input'):
-            ins = tf.placeholder(shape=(batch_size,128,256,3),
+            ins = tf.placeholder(shape=(batch_size,imH,imW,3),
                                         dtype=tf.float32)
-            labs = tf.placeholder(shape=(batch_size,128,256),
+            labs = tf.placeholder(shape=(batch_size,imH,imW),
                                          dtype = tf.int32)
-            #ins = tf.image.resize_bilinear(ins,size=[128,256])
-            #labs = tf.image.resize_bilinear(labs, size = [128,256])
-        #CNN = build_CNN(input=ins)
-        CNN = build_graph(input=ins)
-        global_step = tf.Variable(initial_value=0,
-                                  name = 'global_step',
-                                  trainable = False)
 
-        with tf.name_scope('out_and_in'):    
+        with tf.name_scope("Net"):
+            #CNN = build_CNN(input=ins)
+            CNN = build_graph(input=ins)
+        
+        global_step = tf.Variable(initial_value=0,
+                                      name = 'global_step',
+                                      trainable = False)
+
+        with tf.name_scope('out'):    
             image_summaries(tf.expand_dims(input = CNN.output, axis = -1),name='output')
+            variable_summaries(tf.cast(CNN.output,dtype = tf.float32))
+        with tf.name_scope('labels'):
             image_summaries(tf.expand_dims(input = labs, axis = -1),name='labels') 
             variable_summaries(tf.cast(labs,dtype=tf.float32))
-            variable_summaries(tf.cast(CNN.output,dtype = tf.float32))
+
+        with tf.name_scope('Loss'):
+            l = loss(logits=CNN.last_layer,labs = labs)
+            tf.summary.scalar(name='loss',tensor=l)
+            
         with tf.name_scope('Learning'):
-            with tf.name_scope('Loss'):
-                l = loss(logits=CNN.last_layer,labs = labs)
-                tf.summary.scalar(name='loss',tensor=l)
-            train_step = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss = l,
+            train_step = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss = l,
                                                                                 global_step = global_step)
         merged = tf.summary.merge_all()
 
-
-    with tf.Session(graph=mainGraph) as sess:
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.9)
+    with tf.Session(graph=mainGraph,config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         trainWriter = tf.summary.FileWriter(logdir=log_dir,graph=sess.graph)
         sess.run(tf.global_variables_initializer())
         for epoch in range(epochs):
             random.shuffle(train_set)
             for i in range(int(train_size/batch_size)):
                 if (i ==0):
-                    [images, labels] = produce_mini_batch(train_set,step = i,imW=256,imH=128,batch_size=batch_size)
+                    [images, labels] = produce_mini_batch(train_set,step = i,imW=imW,imH=imH,batch_size=batch_size)
                     run_options = tf.RunOptions(trace_level=tf.RunOptions.HARDWARE_TRACE)
                     run_meta = tf.RunMetadata()
                     _, out,test_layer,test_loss, summary, step = sess.run((train_step, CNN.output,CNN.last_layer,l,merged, global_step), feed_dict={ins : images, labs : labels})
@@ -280,11 +298,12 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
                     trainWriter.add_run_metadata(run_meta,'step%d' % step)
                     trainWriter.add_summary(summary, step)
                 else :
-                    [images, labels] = produce_mini_batch(train_set,step = i,imW=256,imH=128,batch_size=batch_size)
+                    [images, labels] = produce_mini_batch(train_set,step = i,imW=imW,imH=imH,batch_size=batch_size)
                     _, out,test_layer,test_loss, summary, step = sess.run((train_step, CNN.output,CNN.last_layer,l,merged, global_step), feed_dict={ins : images, labs : labels})
                     print(test_loss,i,epoch)
                     trainWriter.add_summary(summary, step)
 
 
-train(log_dir='log_day3/12',batch_size=5,epochs=50,train_size=3000)
-    
+#train(train_dir = 'D:/EtienneData/smalltrain',log_dir='log_day4/13',batch_size=5,epochs=10,train_size=1000,learning_rate=1e-4)
+   
+produce_training_dir(imdir='D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train',labeldir='D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/train',training_set_size=10000,imW=256,imH=128,outdir='D:/EtienneData/smalltrainresized',crop=False)

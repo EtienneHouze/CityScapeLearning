@@ -7,11 +7,11 @@ import numpy as np
 from PIL import Image
 from os.path import join, basename, isfile, normpath
 from os import listdir, walk
-from labels import *
+import labels
 import random
 
 
-num_labels = 35
+num_labels = len(labels.labels)
 
 """
     Preprocessing method to set up a training set from the cityscape folders.
@@ -26,49 +26,52 @@ num_labels = 35
             labelname : the path to the corresponding label
             conerX, cornerY : the coordinates of the top left corner in the image to crop.
 """
-#def produce_training_set(imdir,labeldir,training_set_size,imW=640,imH=360):
-#    filelist = []
-#    imdir = normpath(imdir)
-#    labeldir = normpath(labeldir)
-#    for path, subdirs, files in walk(imdir):
-#        for name in files:
-#            splt_name = str(basename(name)).split(sep="_")
-#            img_name = join(path,name)
-#            city = splt_name[0]
-#            label_name = join(normpath(labeldir),city,city+'_'+splt_name[1]+'_'+splt_name[2]+'_gtFine_labelIds.png')
-#            if (isfile(label_name)):
-#                filelist.append([img_name,label_name])
-#    out = []
-#    random_indices = np.random.randint(low=0,high=len(filelist),size=training_set_size)
-#    step = 0
-#    for i in random_indices:
-#        Im = Image.open(filelist[i][0])
-#        x = np.random.randint(2048-imW)
-#        y = np.random.randint(1024-imH)
-#        Im = Im.crop((x,y,x+imW,y+imH))
-#        im = np.asarray(Im,dtype=np.float32)
-#        Label = Image.open(filelist[i][1])
-#        Label = Label.crop((x,y,x+imW,y+imH))
-#        label = np.asarray(Label,dtype=np.uint8)
-#        #label_one_hot = np.eye(num_labels)[label]
-#        out.append([im,label])
-#        step += 1
-#        print(step)
-#        #out.append(filelist[i]+[np.random.randint(2048-imW),np.random.randint(1024-imH)])
-#    return (out)
 
 """
-    Creates a folder containing cropped images.
-    @ args :
-        - imdir : directory of the training images
-        - labeldir : directory of the label images
-        - outdir : path to the folder where we want to write the new cropped images
-        - training_set_size : the number of images to write
-        - imW, imH : width and height of the cropping to perform
-    @ returns :
-        - nothing, simply writes images
+    #def produce_training_set(imdir,labeldir,training_set_size,imW=640,imH=360):
+    #    filelist = []
+    #    imdir = normpath(imdir)
+    #    labeldir = normpath(labeldir)
+    #    for path, subdirs, files in walk(imdir):
+    #        for name in files:
+    #            splt_name = str(basename(name)).split(sep="_")
+    #            img_name = join(path,name)
+    #            city = splt_name[0]
+    #            label_name = join(normpath(labeldir),city,city+'_'+splt_name[1]+'_'+splt_name[2]+'_gtFine_labelIds.png')
+    #            if (isfile(label_name)):
+    #                filelist.append([img_name,label_name])
+    #    out = []
+    #    random_indices = np.random.randint(low=0,high=len(filelist),size=training_set_size)
+    #    step = 0
+    #    for i in random_indices:
+    #        Im = Image.open(filelist[i][0])
+    #        x = np.random.randint(2048-imW)
+    #        y = np.random.randint(1024-imH)
+    #        Im = Im.crop((x,y,x+imW,y+imH))
+    #        im = np.asarray(Im,dtype=np.float32)
+    #        Label = Image.open(filelist[i][1])
+    #        Label = Label.crop((x,y,x+imW,y+imH))
+    #        label = np.asarray(Label,dtype=np.uint8)
+    #        #label_one_hot = np.eye(num_labels)[label]
+    #        out.append([im,label])
+    #        step += 1
+    #        print(step)
+    #        #out.append(filelist[i]+[np.random.randint(2048-imW),np.random.randint(1024-imH)])
+    #    return (out)
 """
-def produce_training_dir(imdir,labeldir,outdir,training_set_size,imW=640,imH=360):
+
+def produce_training_dir(imdir,labeldir,outdir,training_set_size,imW=640,imH=360,crop=True):
+    """
+        Creates a folder containing cropped images.
+        @ args :
+            - imdir : directory of the training images
+            - labeldir : directory of the label images
+            - outdir : path to the folder where we want to write the new cropped images
+            - training_set_size : the number of images to write
+            - imW, imH : width and height of the cropping to perform
+        @ returns :
+            - nothing, simply writes images
+    """
     filelist = []
     imdir = normpath(imdir)
     labeldir = normpath(labeldir)
@@ -85,11 +88,15 @@ def produce_training_dir(imdir,labeldir,outdir,training_set_size,imW=640,imH=360
     step = 0
     for i in random_indices:
         Im = Image.open(filelist[i][0])
-        x = np.random.randint(2048-imW)
-        y = np.random.randint(1024-imH)
-        Im = Im.crop((x,y,x+imW,y+imH))
         Label = Image.open(filelist[i][1])
-        Label = Label.crop((x,y,x+imW,y+imH))
+        if(crop):
+            x = np.random.randint(2048-imW)
+            y = np.random.randint(1024-imH)
+            Im = Im.crop((x,y,x+imW,y+imH))
+            Label = Label.crop((x,y,x+imW,y+imH))
+        else:
+            Im.thumbnail((imW,imH))
+            Image.open(filelist[i][1])
         Im.save(join(outdir,'_'+str(step)+'_im_.png'))
         Label.save(join(outdir,'_'+str(step)+'_lab_.png'))
         print(step)
@@ -111,13 +118,16 @@ def produce_training_set(traindir,trainsize):
     indices = list(range(trainsize))
     random.shuffle(indices)
     out = []
+    hist = np.zeros((num_labels))
     for i in indices:
         Im = Image.open(normpath(join(traindir,'_'+str(i)+'_im_.png')))
         im = np.asarray(Im,dtype=np.float32)
         Label = Image.open(join(traindir,'_'+str(i)+'_lab_.png'))
-        lab = np.asarray(Label,dtype=np.float32)
+        lab = np.asarray(Label.convert(mode="L"),dtype=np.float32)
+        new_hist, _ = np.histogram(lab,bins=list(range(num_labels+1)))
+        hist += new_hist
         out.append([im,lab])
-    return out
+    return out,hist
 
 """
     Produces a mini batch of images and corresponding labels.
@@ -190,9 +200,9 @@ def image_summaries(im,name='summary'):
 
 def convert_labelled_image(image):
     out_view = np.zeros(shape=(image.shape[0],image.shape[1],3))
-    for i in range(image.shape[0]):
+    for i in range(image.shape[1]):
         for j in range(image.shape[1]):
-            lab = id2label[image[i,j]]
+            lab = labels.id2label[image[i,j]]
             out_view[i,j,:] = lab.color
     return(out_view)
 
