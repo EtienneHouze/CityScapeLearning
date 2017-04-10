@@ -111,7 +111,7 @@ def build_graph(input):
     with tf.name_scope('Inputs'):
         input_shape = input.get_shape().as_list()
 
-    with tf.name_scope('Conv_1 + Pool'):
+    with tf.name_scope('Conv_1_Pool'):
 
         W_conv11 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,input_shape[-1],32], stddev = 0.1, dtype = tf.float32)
                                )
@@ -125,7 +125,7 @@ def build_graph(input):
 
         h_pool1 = tf.nn.max_pool(h_conv12,ksize=[1,2,2,1], strides = [1,2,2,1], padding = "SAME", name="Pooling")
 
-    with tf.name_scope("Conv_2 + Pool"):
+    with tf.name_scope("Conv_2_Pool"):
         W_conv21 = tf.Variable(initial_value=tf.truncated_normal(shape=[5,5,64,128], stddev = 0.1, dtype = tf.float32)
                                )
         b_conv21 = tf.Variable(initial_value=0.1*tf.ones(shape=[128]),dtype=tf.float32)
@@ -304,6 +304,6 @@ def train(batch_size = 10, train_size = 1000, epochs = 10, train_dir = 'D:/Etien
                     trainWriter.add_summary(summary, step)
 
 
-#train(train_dir = 'D:/EtienneData/smalltrain',log_dir='log_day4/13',batch_size=5,epochs=10,train_size=1000,learning_rate=1e-4)
+train(train_dir = 'D:/EtienneData/smalltrainresized',log_dir='log_day4/14',batch_size=5,epochs=10,train_size=1000,learning_rate=1e-4,imH=128,imW=256)
    
-produce_training_dir(imdir='D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train',labeldir='D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/train',training_set_size=10000,imW=256,imH=128,outdir='D:/EtienneData/smalltrainresized',crop=False)
+#produce_training_dir(imdir='D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train',labeldir='D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/train',training_set_size=10000,imW=256,imH=128,outdir='D:/EtienneData/smalltrainresized',crop=False)
