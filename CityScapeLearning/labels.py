@@ -129,6 +129,11 @@ labels = [
 
 # Please refer to the main method below for example usages!
 
+
+#id to catId
+id2catId = {label.id : label.categoryId for label in labels}
+for i in range(34,255):
+    id2catId[i]=-1
 # name to label object
 name2label = {label.name: label for label in labels}
 # id to label object

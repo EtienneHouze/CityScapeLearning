@@ -5,14 +5,14 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>efb10e83-d2a6-430c-942e-f410045c5e04</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>CityScapeLearning.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>CityScapeLearning</Name>
     <RootNamespace>CityScapeLearning</RootNamespace>
-    <IsWindowsApplication>False</IsWindowsApplication>
+    <IsWindowsApplication>True</IsWindowsApplication>
     <InterpreterId>{01f3e3ea-0baa-4b10-89de-9ad4c3fc6d2e}</InterpreterId>
     <InterpreterVersion>3.5</InterpreterVersion>
   </PropertyGroup>
@@ -27,6 +27,12 @@
   <ItemGroup>
     <Compile Include="CityScapeLearning.py" />
     <Compile Include="labels.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="lae=yers_builder.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="main.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SegNet.py">
