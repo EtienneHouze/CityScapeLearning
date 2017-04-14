@@ -90,18 +90,33 @@ def produce_training_dir(imdir, labeldir, outdir, training_set_size, imW=640, im
     random_indices = np.random.randint(low=0, high=len(filelist), size=training_set_size)
     step = 0
     for i in random_indices:
-        Im = Image.open(filelist[i][0])
-        Label = Image.open(filelist[i][1])
-        if (crop):
-            x = np.random.randint(2048 - imW)
-            y = np.random.randint(1024 - imH)
-            Im = Im.crop((x, y, x + imW, y + imH))
-            Label = Label.crop((x, y, x + imW, y + imH))
+        if (alllabels):
+            Im = Image.open(filelist[i][0])
+            Label = Image.open(filelist[i][1])
+            if (crop):
+                x = np.random.randint(2048 - imW)
+                y = np.random.randint(1024 - imH)
+                Im = Im.crop((x, y, x + imW, y + imH))
+                Label = Label.crop((x, y, x + imW, y + imH))
+            else:
+                Im.thumbnail((imW, imH))
+                Label.thumbnail((imW, imW))
+            Im.save(join(outdir, '_' + str(step) + '_im_.png'))
+            Label.save(join(outdir, '_' + str(step) + '_lab_.png'))
         else:
-            Im.thumbnail((imW, imH))
-            Label.thumbnail((imW, imW))
-        Im.save(join(outdir, '_' + str(step) + '_im_.png'))
-        Label.save(join(outdir, '_' + str(step) + '_lab_.png'))
+            Im = Image.open(filelist[i][0])
+            Label = Image.open(filelist[i][1])
+            if (crop):
+                x = np.random.randint(2048 - imW)
+                y = np.random.randint(1024 - imH)
+                Im = Im.crop((x, y, x + imW, y + imH))
+                Label = Label.crop((x, y, x + imW, y + imH))
+            else:
+                Im.thumbnail((imW, imH))
+                Label.thumbnail((imW, imW))
+            Label = Image.eval(Label,labels.convert2catId)
+            Im.save(join(outdir, '_' + str(step) + '_im_.png'))
+            Label.save(join(outdir, '_' + str(step) + '_lab_.png'))
         print(step)
         step += 1
     return
@@ -213,10 +228,10 @@ def produce_training_set(traindir, trainsize,numlabs=35):
         im = np.asarray(Im, dtype=np.float32)
         Label = Image.open(join(traindir, '_' + str(i) + '_lab_.png'))
         lab = np.asarray(Label.convert(mode="L"), dtype=np.float32)
-#TODO
-        for j in range(lab.shape[0]):
-            for k in range(lab.shape[1]):
-                lab[j,k] = labels.id2catId[min((lab[j,k]-1,33))]
+##TODO
+#        for j in range(lab.shape[0]):
+#            for k in range(lab.shape[1]):
+#                lab[j,k] = labels.id2catId[min((lab[j,k]-1,33))]
         new_hist, _ = np.histogram(lab, bins=num_labels)
         hist += new_hist
         out.append([im, lab])
@@ -238,7 +253,7 @@ def produce_training_set(traindir, trainsize,numlabs=35):
 """
 
 
-def produce_mini_batch(trainingset, step, imW=640, imH=360, batch_size=10):
+def produce_mini_batch(trainingset, numlabs,step, imW=640, imH=360, batch_size=10):
     batch_list = trainingset[batch_size * step:(step * batch_size) + batch_size]
     out_im = []
     out_lab = []
@@ -246,7 +261,7 @@ def produce_mini_batch(trainingset, step, imW=640, imH=360, batch_size=10):
     for data in batch_list:
         out_im.append(data[0][:imH, :imW, :])
         out_lab.append(data[1][:imH, :imW])
-        weights.append(np.histogram(a=out_lab[-1],bins=num_labels,density=True)[0])
+        weights.append(np.histogram(a=out_lab[-1],bins=numlabs,density=True)[0])
     # Im = Image.open(data[0])
     #    Im = Im.crop((data[2],data[3],data[2]+imW,data[3]+imH))
     #    Label = Image.open(data[1])

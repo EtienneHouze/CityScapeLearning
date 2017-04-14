@@ -132,8 +132,12 @@ labels = [
 
 #id to catId
 id2catId = {label.id : label.categoryId for label in labels}
-for i in range(34,255):
+for i in range(34,256):
     id2catId[i]=-1
+
+def convert2catId(labId):
+    return id2catId[labId]
+
 # name to label object
 name2label = {label.name: label for label in labels}
 # id to label object

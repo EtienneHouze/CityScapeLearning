@@ -17,6 +17,7 @@ import random
 
 batch_size = 10
 trainsize = 1000
+num_labs = 35
 
 
 # set = produce_training_set(imdir='D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train',labeldir='D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/train',training_set_size=1000)
@@ -46,14 +47,14 @@ def perso_loss(logits, labs, weights):
     # with tf.name_scope('Weights'):
     #    helpers.variable_summaries(weights)
     epsilon = tf.constant(value=1e-30)
-    labs = tf.one_hot(tf.cast(labs, dtype=tf.int32), helpers.num_labels)
+    labs = tf.one_hot(tf.cast(labs, dtype=tf.int32), weights.get_shape()[-1].value)
     weights = 1/(weights+1e-2)
     weights = tf.expand_dims(weights,1)
     weights = tf.expand_dims(weights,1)
     weights = tf.tile(weights,multiples=[1,logits.get_shape()[1].value,logits.get_shape()[2].value,1])
     softmax = tf.nn.softmax(logits)
-    logits_flat = tf.reshape(softmax, shape=[-1, helpers.num_labels])
-    label_flat = tf.reshape(labs, shape=[-1, helpers.num_labels])
+    logits_flat = tf.reshape(softmax, shape=[-1, weights.get_shape()[-1].value])
+    label_flat = tf.reshape(labs, shape=[-1, weights.get_shape()[-1].value])
     return -tf.reduce_mean(
                             tf.reduce_sum(tf.multiply(tf.multiply(labs, tf.log(softmax + epsilon)), weights), axis=[1]))
 
@@ -67,9 +68,9 @@ def loss(logits, labs):
         @ returns :
             - a scalar, the mean of the cross entropy loss of the batch
     """
-    flat_logits = tf.reshape(logits, shape=[-1, helpers.num_labels])
+    flat_logits = tf.reshape(logits, shape=[-1, num_labs])
     flat_labels = tf.reshape(labs, shape=[-1])
-    flat_labels_one_hot = tf.one_hot(tf.cast(flat_labels, dtype=tf.int32), helpers.num_labels)
+    flat_labels_one_hot = tf.one_hot(tf.cast(flat_labels, dtype=tf.int32), num_labs)
 
     return (tf.reduce_mean(
         tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -140,8 +141,8 @@ def total_loss(logits, label, weights, beta=0.0005):
 """
 
 
-def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/train', saver=None, log_dir='/log',
-          imW=256, imH=256, learning_rate=1e-4):
+def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/trainsmalllesslabs', saver=None, log_dir='/log',
+          imW=256, imH=256, learning_rate=1e-4, num__labs=35):
     """
        Defines an runs a training session.
        @ args :
@@ -152,7 +153,8 @@ def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/t
             - saver : path to the file to save the model
             - log_dir : path to the log folder for tensorboard info 
     """
-    train_set, histo = helpers.produce_training_set(traindir=train_dir, trainsize=train_size,numlabs=8)
+    num_labs = num__labs
+    train_set, histo = helpers.produce_training_set(traindir=train_dir, trainsize=train_size,numlabs=num__labs)
     freqs = histo / np.sum(histo)
     weights = 1/freqs
     mainGraph = tf.Graph()
@@ -163,7 +165,7 @@ def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/t
                                  dtype=tf.float32)
             labs = tf.placeholder(shape=(batch_size, imH, imW),
                                   dtype=tf.int32)
-            weigs = tf.placeholder(shape=(batch_size,helpers.num_labels),
+            weigs = tf.placeholder(shape=(batch_size,num__labs),
                                    dtype=tf.float32)
 
         with tf.name_scope("Net"):
@@ -173,7 +175,7 @@ def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/t
             #CNN = build_little_CNN_3conv_pool_2conv_pool_3conv_unpool_unpool(input=ins)
             #CNN = build_little_CNN_3conv_pool_2conv_pool_3conv_unpool_merge_unpool(input=ins)
             #CNN = build_little_CNN_3conv_pool_2conv_pool_3conv_pool_3conv_unpool_merge_unpool_unpool(input=ins)
-            CNN = build_little_CNN_2skips(input=ins)
+            CNN = build_little_CNN_2skips_bilinupsambling(input=ins,numlab=num__labs)
         global_step = tf.Variable(initial_value=0,
                                   name='global_step',
                                   trainable=False)
@@ -202,7 +204,7 @@ def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/t
             random.shuffle(train_set)
             for i in range(int(train_size / batch_size)):
                 if (i == 0):
-                    [images, labels, w] = helpers.produce_mini_batch(train_set, step=i, imW=imW, imH=imH, batch_size=batch_size)
+                    [images, labels, w] = helpers.produce_mini_batch(train_set, step=i, imW=imW, imH=imH, batch_size=batch_size, numlabs=num__labs)
                     run_options = tf.RunOptions(trace_level=tf.RunOptions.HARDWARE_TRACE)
                     run_meta = tf.RunMetadata()
                     _, out, test_layer, test_loss, summary, step = sess.run(
@@ -212,7 +214,7 @@ def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/t
                     trainWriter.add_run_metadata(run_meta, 'step%d' % step)
                     trainWriter.add_summary(summary, step)
                 else:
-                    [images, labels, w] = helpers.produce_mini_batch(train_set, step=i, imW=imW, imH=imH, batch_size=batch_size)
+                    [images, labels, w] = helpers.produce_mini_batch(train_set, step=i, imW=imW, imH=imH, batch_size=batch_size, numlabs = num__labs)
                     _, out, test_layer, test_loss, summary, step = sess.run(
                         (train_step, CNN.output, CNN.last_layer, l, merged, global_step),
                         feed_dict={ins: images, labs: labels, weigs : w})
