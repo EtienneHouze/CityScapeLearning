@@ -238,22 +238,36 @@ def produce_training_set(traindir, trainsize,numlabs=35):
     return out, hist
 
 
+def produce_testing_set(testdir, testsize = 100, imH = 128, imW = 256):
+    out = []
+    for i in range(testsize):
+        Im = Image.open(normpath(join(testdir, '_' + str(i) + '_im_.png')))
+        Im.thumbnail([imW,imH])
+        im = np.asarray(Im, dtype=np.float32)
+        Label = Image.open(join(testdir, '_' + str(i) + '_lab_.png'))
+        Label.thumbnail([imW,imH])
+        lab = np.asarray(Label.convert(mode="L"), dtype=np.float32)
+        out.append([im,lab])
+    return out
+    
 
-"""
-    Produces a mini batch of images and corresponding labels.
-    @ args :
-        - trainingset : a list of tuples, see the output of the produce_training_set mathod
-        - step : the step of the iteration inside the epoch
-        - imW,imH = size of the cropped images
-        - batch_size : length of a batch
-    @ returns :
-        - out : a list of pairs [im, label] with 
-            - im : a ImW*ImH*3 float32 np array, encoding the cropped image
-            - label : a ImW*ImH uint8 np array, encoding the labelled cropped image
-"""
+
+
 
 
 def produce_mini_batch(trainingset, numlabs,step, imW=640, imH=360, batch_size=10):
+    """
+        Produces a mini batch of images and corresponding labels.
+        @ args :
+            - trainingset : a list of tuples, see the output of the produce_training_set mathod
+            - step : the step of the iteration inside the epoch
+            - imW,imH = size of the cropped images
+            - batch_size : length of a batch
+        @ returns :
+            - out : a list of pairs [im, label] with 
+                - im : a ImW*ImH*3 float32 np array, encoding the cropped image
+                - label : a ImW*ImH uint8 np array, encoding the labelled cropped image
+    """
     batch_list = trainingset[batch_size * step:(step * batch_size) + batch_size]
     out_im = []
     out_lab = []
@@ -370,6 +384,7 @@ def max_pool_with_mem(input):
 
 
 def unpool(input, pool_indices):
+    Dep
     batch_size = input.get_shape()[0].value
     height = input.get_shape()[2].value
     width = input.get_shape()[1].value
@@ -488,40 +503,42 @@ def conv2d_transpose(input, filters, layername, k_init=[0.0,0.1], stride = [2,2]
     else:
         return (out,vars)
 
-#def merge_layers(largelayer, smalllayer, num_of_ups=1, filters = num_labels):
-    #vars = []
-    #with tf.name_scope("equalizing_depths"):
-    #    small_layer,convvarS = conv2d(input=smalllayer,
-    #                           filters = filters,
-    #                           layername='',
-    #                           ksize=[1,1],relu=False
-    #                           )
-    #    vars.append(convvarS)
-    #    large_layer, convvarL = conv2d(input=largelayer,
-    #                            filters = filters,
-    #                            layername='',
-    #                            ksize=[1,1],
-    #                            relu = False
-    #                            )
-    #    vars.append(convvarL)
-    #with tf.name_scope('unpooling_before_merge'):
-    #    for i in range(num_of_ups):
-    #        small_layer,unconvvar = conv2d_transpose(input = small_layer,
-    #                                       layername = '_'+str(i),
-    #                                       filters = largelayer.get_shape()[-1].value,
-    #                                       relu = False
-    #                                       )
-    #        vars.append(unconvvar)
-    #inspect_layer(small_layer,0,'small')
-    #inspect_layer(largelayer, 0, 'large')
-    #variable_summaries(small_layer)
-    #variable_summaries(largelayer)
-    ##return (tf.add(tf.nn.l2_normalize(largelayer,dim=-1),tf.nn.l2_normalize(small_layer,dim=-1),name='merging'),vars)
-    #return (tf.add(largelayer,small_layer, name = 'mergin'), vars)
+""" DEPRECATED
+    #def merge_layers(largelayer, smalllayer, num_of_ups=1, filters = num_labels):
+        #vars = []
+        #with tf.name_scope("equalizing_depths"):
+        #    small_layer,convvarS = conv2d(input=smalllayer,
+        #                           filters = filters,
+        #                           layername='',
+        #                           ksize=[1,1],relu=False
+        #                           )
+        #    vars.append(convvarS)
+        #    large_layer, convvarL = conv2d(input=largelayer,
+        #                            filters = filters,
+        #                            layername='',
+        #                            ksize=[1,1],
+        #                            relu = False
+        #                            )
+        #    vars.append(convvarL)
+        #with tf.name_scope('unpooling_before_merge'):
+        #    for i in range(num_of_ups):
+        #        small_layer,unconvvar = conv2d_transpose(input = small_layer,
+        #                                       layername = '_'+str(i),
+        #                                       filters = largelayer.get_shape()[-1].value,
+        #                                       relu = False
+        #                                       )
+        #        vars.append(unconvvar)
+        #inspect_layer(small_layer,0,'small')
+        #inspect_layer(largelayer, 0, 'large')
+        #variable_summaries(small_layer)
+        #variable_summaries(largelayer)
+        ##return (tf.add(tf.nn.l2_normalize(largelayer,dim=-1),tf.nn.l2_normalize(small_layer,dim=-1),name='merging'),vars)
+        #return (tf.add(largelayer,small_layer, name = 'mergin'), vars)
+"""
 
-def predictions(input,inspect=True):
+def predictions(input, numlabs, inspect=True):
     out, _ = conv2d(input=input,
-                    filters=num_labels,
+                    filters=numlabs,
                     layername = 'prediction',
                     relu = False,
                     ksize = [1,1]
@@ -536,14 +553,14 @@ def predictions(input,inspect=True):
 
     return out
 
-def alternate_merge(inputs,ksize=[1,1]):
+def alternate_merge(inputs,numlabs, ksize=[1,1]):
     with tf.name_scope('Concatenation'):
         merged_layer = tf.concat(values = inputs,
                                  axis = -1
                                  )
     with tf.name_scope('Merging_conv'):
         return conv2d(merged_layer,
-                      filters = num_labels,
+                      filters = numlabs,
                       layername = 'merging_conv',
                       bias = False,
                       ksize = ksize

@@ -9,15 +9,15 @@ from __future__ import absolute_import
 import tensorflow as tf
 import numpy as np
 import PIL
-from os.path import join
+from os.path import join, normpath
 from os import listdir
 from Network import *
 import helpers
 import random
 
-batch_size = 10
-trainsize = 1000
-num_labs = 35
+#batch_size = 10
+#trainsize = 1000
+#num_labs = 35
 
 
 # set = produce_training_set(imdir='D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train',labeldir='D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/train',training_set_size=1000)
@@ -56,7 +56,7 @@ def perso_loss(logits, labs, weights):
     logits_flat = tf.reshape(softmax, shape=[-1, weights.get_shape()[-1].value])
     label_flat = tf.reshape(labs, shape=[-1, weights.get_shape()[-1].value])
     return -tf.reduce_mean(
-                            tf.reduce_sum(tf.multiply(tf.multiply(labs, tf.log(softmax + epsilon)), weights), axis=[1]))
+                             tf.reduce_sum(tf.multiply(tf.multiply(labs, tf.log(softmax + epsilon)), weights), axis=[1]))
 
 
 def loss(logits, labs):
@@ -141,8 +141,8 @@ def total_loss(logits, label, weights, beta=0.0005):
 """
 
 
-def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/trainsmalllesslabs', saver=None, log_dir='/log',
-          imW=256, imH=256, learning_rate=1e-4, num__labs=35):
+def train(batch_size=10, train_size=1000, epochs=3, train_dir='D:/EtienneData/trainsmalllesslabs', log_dir='/log',
+          imW=256, imH=256, learning_rate=1e-4, num__labs=35, saving_path = None, loading_path = None):
     """
        Defines an runs a training session.
        @ args :
@@ -158,27 +158,20 @@ def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/t
     freqs = histo / np.sum(histo)
     weights = 1/freqs
     mainGraph = tf.Graph()
-
     with mainGraph.as_default():
         with tf.name_scope('Input'):
             ins = tf.placeholder(shape=(batch_size, imH, imW, 3),
-                                 dtype=tf.float32)
+                                    dtype=tf.float32)
             labs = tf.placeholder(shape=(batch_size, imH, imW),
-                                  dtype=tf.int32)
+                                    dtype=tf.int32)
             weigs = tf.placeholder(shape=(batch_size,num__labs),
-                                   dtype=tf.float32)
+                                    dtype=tf.float32)
 
         with tf.name_scope("Net"):
-            #CNN = build_CNN(input=ins)
-            #CNN = build_graph(input=ins)
-            #CNN = build_little_CNN_2conv_pool_2conv_pool_unpool_unpool(input=ins)
-            #CNN = build_little_CNN_3conv_pool_2conv_pool_3conv_unpool_unpool(input=ins)
-            #CNN = build_little_CNN_3conv_pool_2conv_pool_3conv_unpool_merge_unpool(input=ins)
-            #CNN = build_little_CNN_3conv_pool_2conv_pool_3conv_pool_3conv_unpool_merge_unpool_unpool(input=ins)
             CNN = build_little_CNN_2skips_bilinupsambling(input=ins,numlab=num__labs)
         global_step = tf.Variable(initial_value=0,
-                                  name='global_step',
-                                  trainable=False)
+                                    name='global_step',
+                                    trainable=False)
 
         with tf.name_scope('out'):
             helpers.image_summaries(tf.expand_dims(input=CNN.output, axis=-1), name='output')
@@ -192,14 +185,18 @@ def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/t
             tf.summary.scalar(name='loss', tensor=l)
 
         with tf.name_scope('Learning'):
-            train_step = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss=l,
-                                                                                      global_step=global_step)
-        merged = tf.summary.merge_all()
+            train_step = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss=l,                                                                global_step=global_step)
 
-    #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.9)
+
+        merged = tf.summary.merge_all()
+    
     with tf.Session(graph=mainGraph) as sess:
+
         trainWriter = tf.summary.FileWriter(logdir=log_dir, graph=sess.graph)
         sess.run(tf.global_variables_initializer())
+        if (loading_path):
+            loader = tf.train.Saver()
+            loader.restore(sess,loading_path)
         for epoch in range(epochs):
             random.shuffle(train_set)
             for i in range(int(train_size / batch_size)):
@@ -220,6 +217,13 @@ def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/t
                         feed_dict={ins: images, labs: labels, weigs : w})
                     print(test_loss, i, epoch)
                     trainWriter.add_summary(summary, step)
+        if (saving_path):
+            saver = tf.train.Saver()
+            print (saver.save(sess,
+                       save_path = saving_path,
+                       write_meta_graph = False
+                       )
+                   )
 
 
 
@@ -243,3 +247,63 @@ def train(batch_size=10, train_size=1000, epochs=10, train_dir='D:/EtienneData/t
 #    listims, listlabs = sess.run((ims,labs),feed_dict = {im_list : list[0],lab_list : list[1]})
 #    print('done')
 
+def test(testdir, savedmodel, num__labs = 8, num_im = 100, batch_size = 1,imH = 128,imW = 256):
+    
+    
+    #Building the model
+    mainGraph = tf.Graph()
+    with mainGraph.as_default():
+        with tf.name_scope('Input'):
+            ins = tf.placeholder(shape=(batch_size, imH, imW, 3),
+                                    dtype=tf.float32)
+            labs = tf.placeholder(shape=(batch_size, imH, imW),
+                                    dtype=tf.int32)
+            weigs = tf.placeholder(shape=(batch_size,num__labs),
+                                    dtype=tf.float32)
+
+        with tf.name_scope("Net"):
+            CNN = build_little_CNN_2skips_bilinupsambling(input=ins,numlab=num__labs)
+        global_step = tf.Variable(initial_value=0,
+                                    name='global_step',
+                                    trainable=False)
+
+        with tf.name_scope('out'):
+            helpers.image_summaries(tf.expand_dims(input=CNN.output, axis=-1), name='output')
+            helpers.variable_summaries(tf.cast(CNN.output, dtype=tf.float32))
+        with tf.name_scope('labels'):
+            helpers.image_summaries(tf.expand_dims(input=labs, axis=-1), name='labels')
+            helpers.variable_summaries(tf.cast(labs, dtype=tf.float32))
+
+        with tf.name_scope('Loss'):
+            l = perso_loss(logits=CNN.last_layer, labs=labs, weights=weigs)
+            tf.summary.scalar(name='loss', tensor=l)
+
+    
+    with tf.Session(graph = mainGraph) as sess:
+        sess.run(tf.global_variables_initializer())
+        test_set = helpers.produce_testing_set(testdir, num_im)
+        loader = tf.train.Saver()
+        loader.restore(sess, save_path = savedmodel)
+            
+        for i in range(num_im):
+                print(i)
+                [images, labels, w] = helpers.produce_mini_batch(test_set, step=i, imW=imW, imH=imH, batch_size=batch_size, numlabs=num__labs)
+                preds, test_loss = sess.run((CNN.output,l),feed_dict = {ins : images, labs : labels, weigs : w})
+                print(test_loss)
+                print('yeah')
+                IOU = np.zeros((num__labs))
+                for lab_ind in range(num__labs):
+                    TP = 0.0
+                    FP = 0.0
+                    FN = 0.0
+                    for j in range(imH):
+                        for k in range(imW):
+                            if (preds[0,j,k]==lab_ind and labels[0][j,k]==lab_ind):
+                                TP += 1
+                            elif (preds[0,j,k]==lab_ind and labels[0][j,k]!=lab_ind):
+                                FP += 1
+                            elif (preds[0,j,k]!=lab_ind and labels[0][j,k]==lab_ind):
+                                FN +=1
+                    IOU[lab_ind] = TP/(TP+FP+FN)
+                IOU_mean = np.mean(IOU)
+                print('mean IOU is : ' + str(IOU_mean))

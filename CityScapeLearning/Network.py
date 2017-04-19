@@ -1023,21 +1023,25 @@ def build_little_CNN_2skips_bilinupsambling(input,numlab):
                                              )
     with tf.name_scope('Merge'):
         with tf.name_scope('Predictions'):
-            pred4 = helpers.predictions(unpool4_2)
-            pred3 = helpers.predictions(unpool_3)
-            pred2 = helpers.predictions(pool1)
+            pred4 = helpers.predictions(unpool4_2,numlabs=net.numlabs)
+            pred3 = helpers.predictions(unpool_3,numlabs=net.numlabs)
+            pred2 = helpers.predictions(pool1,numlabs=net.numlabs)
         with tf.name_scope('Merging'):
-            #merged,_ = helpers.alternate_merge([pred4,pred3,pred2],
-            #                                  ksize = [3,3]
-            #                                  )
-            merged = tf.add(pred4,tf.add(pred2,pred3))
+            merged,_ = helpers.alternate_merge([pred4,pred3,pred2],
+                                               numlabs = net.numlabs,
+                                              ksize = [3,3]
+                                              )
+            #merged = tf.add(pred4,tf.add(pred2,pred3))
     with tf.name_scope('Unpooling_2'):
-        unpool2,unpool2vars = helpers.conv2d_transpose(merged,
-                                                       net.numlabs,
-                                                       ksize=[3,3],
-                                                       layername='unpool2',
-                                                       relu = False
-                                                       )
+        #unpool2,unpool2vars = helpers.conv2d_transpose(merged,
+        #                                               net.numlabs,
+        #                                               ksize=[3,3],
+        #                                               layername='unpool2',
+        #                                               relu = False
+        #                                               )
+        unpool2 = tf.image.resize_bilinear(merged,
+                                           size = [2*merged.get_shape()[1].value, 2*merged.get_shape()[2].value]
+                                           )
     #with tf.name_scope('Unpooling_3'):
     #    unpool3, unpool3vars = helpers.conv2d_transpose(unpool2,
     #                                                    helper.num_labels,
