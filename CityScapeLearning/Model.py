@@ -18,7 +18,7 @@ class Model:
        self.last_cp = last_cp
 
 
-    def train(self, train_dir, log_dir, batch_size, epochs, train_size, learning_rate, savestep = 100, vars = None):
+    def train(self, train_dir, log_dir, batch_size, epochs, train_size, learning_rate, savestep = 100, trainable_vars = None, trained_vars = None):
         num_labs = self.num_labs
         imH = self.imH
         imW = self.imW
@@ -52,9 +52,9 @@ class Model:
 
             with tf.name_scope('Learning'):
                 trainstep = None
-                if (vars):
+                if (trainable_vars):
                     varlist = []
-                    for varname in vars:
+                    for varname in trainable_vars:
                         varlist.extend(CNN.variables[varname])
                     train_step = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss=l,                                                                global_step=global_step,
                                                                                               var_list = varlist)
@@ -68,7 +68,14 @@ class Model:
 
             trainWriter = tf.summary.FileWriter(logdir=log_dir, graph=sess.graph)
             sess.run(tf.global_variables_initializer())
-            if (self.last_cp):
+
+            if (self.last_cp and trained_vars):
+                trained_var_list = []
+                for var in trained_vars:
+                    trained_var_list.extend(CNN.variables[var])
+                loader = tf.train.Saver(trained_var_list)
+                loader.restore(sess,self.last_cp)
+            elif (self.last_cp):
                 loader = tf.train.Saver()
                 loader.restore(sess,self.last_cp)
             for epoch in range(epochs):
@@ -128,6 +135,7 @@ class Model:
             loader = tf.train.Saver()
             loader.restore(sess, save_path = self.last_cp)
             tot_IOU = np.zeros((num_im))
+            tot_acc = np.zeros((num_im))
             print("Done ! \n")
             for i in range(num_im):
                 [images, labels, w] = helpers.produce_mini_batch(test_set, step=i, imW=imW, imH=imH, batch_size=batch_size, numlabs=self.num_labs)
@@ -136,10 +144,12 @@ class Model:
                 print("==============================")
                 print("     Loss is : " + str(test_loss))
                 IOU = np.zeros((self.num_labs))
+                acc = np.zeros((self.num_labs))
                 for lab_ind in range(self.num_labs):
                     TP = 0.0
                     FP = 0.0
                     FN = 0.0
+                    TN = 0.0
                     for j in range(imH):
                         for k in range(imW):
                             if (preds[0,j,k]==lab_ind and labels[0][j,k]==lab_ind):
@@ -148,15 +158,22 @@ class Model:
                                 FP += 1
                             elif (preds[0,j,k]!=lab_ind and labels[0][j,k]==lab_ind):
                                 FN +=1
+                            else :
+                                TN += 1
                     IOU[lab_ind] = TP/(TP+FP+FN)
+                    acc[lab_ind] = (TP + TN) / (TP+TN+FP+FN)
                 IOU_mean = np.mean(IOU)
+                acc_mean = np.mean(acc)
                 tot_IOU[i] = IOU_mean
-                print('     mean IOU is : ' + str(IOU_mean) +'\n')
+                tot_acc[i] = acc_mean
+                print('     mean IOU is : ' + str(IOU_mean))
+                print('     mean accuracy is : ' + str(acc_mean))
             print(' ')
-            print("Over " + str(num_im) + "images, mean IOU is " + str(np.mean(tot_IOU)))
+            print("Over " + str(num_im) + " images, mean IOU is " + str(np.mean(tot_IOU))+ ", mean accuracy is : " + str(np.mean(tot_acc)))
             print("End")
                 
 
+    #def compute(self, im):
 
 
 
