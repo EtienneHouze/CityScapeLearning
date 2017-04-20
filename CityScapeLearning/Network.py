@@ -1,6 +1,5 @@
 from __future__ import print_function, division, absolute_import
 
-import numpy as np
 import tensorflow as tf
 
 import helpers
@@ -36,6 +35,7 @@ class Network:
         self.encoding_layers = []
         self.encoder_variables = []
         self.decoder_variables = []
+        self.variables = {}
         self.name = name
         self.numlabs = numlab
 
@@ -902,9 +902,9 @@ def build_little_CNN_2skips(input,numlab):
                                                         )
     with tf.name_scope('Merge'):
         with tf.name_scope('Predictions'):
-            pred4 = helpers.predictions(unpool4_2)
-            pred3 = helpers.predictions(unpool_3)
-            pred2 = helpers.predictions(pool1)
+            pred4 = helpers.predictions(unpool4_2,numlabs=net.numlabs)
+            pred3 = helpers.predictions(unpool_3,numlabs=net.numlabs)
+            pred2 = helpers.predictions(pool1,numlabs=net.numlabs)
         with tf.name_scope('Merging'):
             #merged,_ = helpers.alternate_merge([pred4,pred3,pred2],
             #                                  ksize = [3,3]
@@ -1027,11 +1027,11 @@ def build_little_CNN_2skips_bilinupsambling(input,numlab):
             pred3 = helpers.predictions(unpool_3,numlabs=net.numlabs)
             pred2 = helpers.predictions(pool1,numlabs=net.numlabs)
         with tf.name_scope('Merging'):
-            merged,_ = helpers.alternate_merge([pred4,pred3,pred2],
-                                               numlabs = net.numlabs,
-                                              ksize = [3,3]
-                                              )
-            #merged = tf.add(pred4,tf.add(pred2,pred3))
+            #merged,_ = helpers.alternate_merge([pred4,pred3,pred2],
+            #                                   numlabs = net.numlabs,
+            #                                  ksize = [3,3]
+            #                                  )
+            merged = tf.add(pred4,tf.add(pred2,pred3))
     with tf.name_scope('Unpooling_2'):
         #unpool2,unpool2vars = helpers.conv2d_transpose(merged,
         #                                               net.numlabs,
@@ -1053,3 +1053,376 @@ def build_little_CNN_2skips_bilinupsambling(input,numlab):
     net.compute_output()
     return net
 
+def build_big_CNN_2skips_bilinupsambling(input,numlab):
+    net = Network(input,numlab=numlab)
+
+    with tf.name_scope('Conv0'):
+        with tf.name_scope('_1'):
+            conv0_1, _ = helpers.conv2d(input = net.input,
+                                        filters = 32,
+                                        layername='Conv0_1'
+                                        )
+        with tf.name_scope('_2'):
+            conv0_2, _ = helpers.conv2d(input = conv0_1,
+                                        filters = 64,
+                                        layername='Conv0_1'
+                                        )
+    with tf.name_scope('Pool0'):
+        pool0 = tf.layers.max_pooling2d(inputs=conv0_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+    with tf.name_scope('Conv0bis'):
+        with tf.name_scope('_1'):
+            conv0bis_1, _ = helpers.conv2d(input = pool0,
+                                        filters = 128,
+                                        layername='Conv0bis_1'
+                                        )
+        with tf.name_scope('_2'):
+            conv0bis_2, _ = helpers.conv2d(input = conv0bis_1,
+                                        filters = 128,
+                                        layername='Conv0bis_1'
+                                        )
+    with tf.name_scope('Pool0bis'):
+        pool0bis = tf.layers.max_pooling2d(inputs=conv0bis_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+    with tf.name_scope('Conv1'):
+        with tf.name_scope('_1'):
+            conv1_1,var1_1 = helpers.conv2d(input = pool0bis,
+                                       filters = 64,
+                                       layername = 'Conv1_1'
+                                       )
+            helpers.variable_summaries(var1_1[0])
+        with tf.name_scope('_2'):
+            conv1_2,_ = helpers.conv2d(input = conv1_1,
+                                       filters = 64,
+                                       layername = 'Conv1_1'
+                                       )
+    with tf.name_scope('Pool1'):
+        pool1 = tf.layers.max_pooling2d(inputs=conv1_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+        helpers.inspect_layer(pool1,depth=0,name='pool1')
+        helpers.inspect_layer(pool1,depth=10,name='pool1')
+    with tf.name_scope('Conv2'):
+        with tf.name_scope('_1'):
+            conv2_1, conv2_1vars = helpers.conv2d(input = pool1,
+                                                  filters = 128,
+                                                  layername = 'Conv2_1'
+                                                  )
+        with tf.name_scope('_2'):
+            conv2_2,_ = helpers.conv2d(input = conv2_1,
+                                       filters = 128,
+                                       layername = 'Conv2_2'
+                                       )
+    with tf.name_scope('Pool2'):
+        pool2 = tf.layers.max_pooling2d(inputs=conv2_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+    with tf.name_scope('Conv_3'):
+        with tf.name_scope('_1'):
+            conv3_1, var3_1 = helpers.conv2d(input=pool2,
+                                        layername = 'Conv3_1',
+                                        filters = 256
+                                        )
+            helpers.variable_summaries(var3_1[0])
+        with tf.name_scope('_2'):
+            conv3_2, _ = helpers.conv2d(input=conv3_1,
+                                     filters = 256,
+                                     layername = 'Conv3_2'
+                                     )
+        with tf.name_scope('_3'):
+            conv3_3, _ = helpers.conv2d(input=conv3_2,
+                                     filters = 256,
+                                     layername = 'Conv3_3',
+                                     ksize = [1,1]
+                                     )
+    with tf.name_scope('Pool3'):
+         pool3 = tf.layers.max_pooling2d(inputs=conv3_3,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+    with tf.name_scope('Conv_4'):
+         with tf.name_scope('_1'):
+            conv4_1, var3_1 = helpers.conv2d(input=pool3,
+                                        layername = 'Conv4_1',
+                                        filters = 512
+                                        )
+            helpers.variable_summaries(var3_1[0])
+         with tf.name_scope('_2'):
+            conv4_2, _ = helpers.conv2d(input=conv4_1,
+                                     filters = 512,
+                                     layername = 'Conv4_2'
+                                     )
+         with tf.name_scope('_3'):
+            conv4_3, _ = helpers.conv2d(input=conv4_2,
+                                     filters = 512,
+                                     layername = 'Conv4_3',
+                                     ksize = [1,1]
+                                     )
+    with tf.name_scope('Unpooling_4'):
+        #unpool4_1,unpool4_1vars = helpers.conv2d_transpose(conv4_3,
+        #                                                   filters = net.numlabs,
+        #                                                   ksize=[3,3],
+        #                                                   layername='unpool4_1'
+        #                                                   )
+        #unpool4_2, unpool4_2vars = helpers.conv2d_transpose(unpool4_1,
+        #                                                    filters = net.numlabs,
+        #                                                    ksize = [3,3],
+        #                                                    layername = 'Unpool4_2'
+        #                                                    )
+        unpool4_2 = tf.image.resize_bilinear(conv4_3,
+                                             size = [4*conv4_3.get_shape()[1].value, 4 * conv4_3.get_shape()[2].value]
+                                             )
+    with tf.name_scope('Unpooling_3'):
+        unpool_3 = tf.image.resize_bilinear(pool2,
+                                             size = [2*pool2.get_shape()[1].value, 2 * pool2.get_shape()[2].value]
+                                             )
+    with tf.name_scope('Merge'):
+        with tf.name_scope('Predictions'):
+            pred4 = helpers.predictions(unpool4_2,numlabs=net.numlabs)
+            pred3 = helpers.predictions(unpool_3,numlabs=net.numlabs)
+            pred2 = helpers.predictions(pool1,numlabs=net.numlabs)
+        with tf.name_scope('Merging'):
+            #merged,_ = helpers.alternate_merge([pred4,pred3,pred2],
+            #                                   numlabs = net.numlabs,
+            #                                  ksize = [3,3]
+            #                                  )
+            merged = tf.add(pred4,tf.add(pred2,pred3))
+    with tf.name_scope('Unpooling_2'):
+        #unpool2,unpool2vars = helpers.conv2d_transpose(merged,
+        #                                               net.numlabs,
+        #                                               ksize=[3,3],
+        #                                               layername='unpool2',
+        #                                               relu = False
+        #                                               )
+        unpool2 = tf.image.resize_bilinear(merged,
+                                           size = [8*merged.get_shape()[1].value, 8*merged.get_shape()[2].value]
+                                           )
+    #with tf.name_scope('Unpooling_3'):
+    #    unpool3, unpool3vars = helpers.conv2d_transpose(unpool2,
+    #                                                    helper.num_labels,
+    #                                                    ksize=[3,3],
+    #                                                    layername = 'unpool3',
+    #                                                    relu = False
+    #                                                    )
+    net.last_layer = unpool2
+    net.compute_output()
+    return net
+
+def build_big_CNN_2skips(input,numlab):
+    net = Network(input,numlab=numlab)
+    net.variables['32s'] = []
+    net.variables['16s'] = []
+    net.variables['8s'] = []
+
+    with tf.name_scope('Conv0'):
+        with tf.name_scope('_1'):
+            conv0_1, conv0_1vars = helpers.conv2d(input = net.input,
+                                        filters = 32,
+                                        layername='Conv0_1'
+                                        )
+        with tf.name_scope('_2'):
+            conv0_2, conv0_2vars = helpers.conv2d(input = conv0_1,
+                                        filters = 64,
+                                        layername='Conv0_1'
+                                        )
+            net.variables['32s'].extend(conv0_1vars)
+            net.variables['32s'].extend(conv0_2vars)
+    with tf.name_scope('Pool0'):
+        pool0 = tf.layers.max_pooling2d(inputs=conv0_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+    with tf.name_scope('Conv0bis'):
+        with tf.name_scope('_1'):
+            conv0bis_1, conv0bis_1vars = helpers.conv2d(input = pool0,
+                                        filters = 128,
+                                        layername='Conv0bis_1'
+                                        )
+        with tf.name_scope('_2'):
+            conv0bis_2, conv0bis_2vars = helpers.conv2d(input = conv0bis_1,
+                                        filters = 128,
+                                        layername='Conv0bis_1'
+                                        )
+            net.variables['32s'].extend(conv0bis_1vars)
+            net.variables['32s'].extend(conv0bis_2vars)
+    with tf.name_scope('Pool0bis'):
+        pool0bis = tf.layers.max_pooling2d(inputs=conv0bis_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+    with tf.name_scope('Conv1'):
+        with tf.name_scope('_1'):
+            conv1_1,conv1_1vars = helpers.conv2d(input = pool0bis,
+                                       filters = 64,
+                                       layername = 'Conv1_1'
+                                       )
+            helpers.variable_summaries(conv1_1vars[0])
+        with tf.name_scope('_2'):
+            conv1_2,conv1_2vars = helpers.conv2d(input = conv1_1,
+                                       filters = 64,
+                                       layername = 'Conv1_1'
+                                       )
+            net.variables['32s'].extend(conv1_1vars)
+            net.variables['32s'].extend(conv1_2vars)
+    with tf.name_scope('Pool1'):
+        pool1 = tf.layers.max_pooling2d(inputs=conv1_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+        helpers.inspect_layer(pool1,depth=0,name='pool1')
+        helpers.inspect_layer(pool1,depth=10,name='pool1')
+    with tf.name_scope('Conv2'):
+        with tf.name_scope('_1'):
+            conv2_1, conv2_1vars = helpers.conv2d(input = pool1,
+                                                  filters = 128,
+                                                  layername = 'Conv2_1'
+                                                  )
+        with tf.name_scope('_2'):
+            conv2_2, conv2_2vars = helpers.conv2d(input = conv2_1,
+                                       filters = 128,
+                                       layername = 'Conv2_2'
+                                       )
+            net.variables['32s'].extend(conv2_1vars)
+            net.variables['32s'].extend(conv2_2vars)
+    with tf.name_scope('Pool2'):
+        pool2 = tf.layers.max_pooling2d(inputs=conv2_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+    with tf.name_scope('Conv_3'):
+        with tf.name_scope('_1'):
+            conv3_1, conv3_1vars = helpers.conv2d(input=pool2,
+                                        layername = 'Conv3_1',
+                                        filters = 256
+                                        )
+            helpers.variable_summaries(conv3_1vars[0])
+        with tf.name_scope('_2'):
+            conv3_2, conv3_2vars = helpers.conv2d(input=conv3_1,
+                                     filters = 256,
+                                     layername = 'Conv3_2'
+                                     )
+        with tf.name_scope('_3'):
+            conv3_3, conv3_3vars = helpers.conv2d(input=conv3_2,
+                                     filters = 256,
+                                     layername = 'Conv3_3',
+                                     ksize = [1,1]
+                                     )
+            net.variables['32s'].extend(conv3_1vars)
+            net.variables['32s'].extend(conv3_2vars)
+            net.variables['32s'].extend(conv3_3vars)
+    with tf.name_scope('Pool3'):
+         pool3 = tf.layers.max_pooling2d(inputs=conv3_3,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+    with tf.name_scope('Conv_4'):
+         with tf.name_scope('_1'):
+            conv4_1, conv4_1vars = helpers.conv2d(input=pool3,
+                                        layername = 'Conv4_1',
+                                        filters = 512
+                                        )
+            helpers.variable_summaries(conv4_1vars[0])
+            net.variables['32s'].extend(conv4_1vars)
+         with tf.name_scope('_2'):
+            conv4_2, conv4_2vars = helpers.conv2d(input=conv4_1,
+                                     filters = 512,
+                                     layername = 'Conv4_2'
+                                     )
+         with tf.name_scope('_3'):
+            conv4_3, conv4_3vars = helpers.conv2d(input=conv4_2,
+                                     filters = 512,
+                                     layername = 'Conv4_3',
+                                     ksize = [1,1]
+                                     )
+            net.variables['32s'].extend(conv4_2vars)
+            net.variables['32s'].extend(conv4_3vars)
+    with tf.name_scope('Unpooling_4'):
+        unpool4_1,unpool4_1vars = helpers.conv2d_transpose(conv4_3,
+                                                           filters = net.numlabs,
+                                                           ksize=[3,3],
+                                                           layername='unpool4_1'
+                                                           )
+        unpool4_2, unpool4_2vars = helpers.conv2d_transpose(unpool4_1,
+                                                            filters = net.numlabs,
+                                                            ksize = [3,3],
+                                                            layername = 'Unpool4_2'
+                                                            )
+        net.variables['32s'].extend(unpool4_1vars)
+        net.variables['32s'].extend(unpool4_2vars)
+        #unpool4_2 = tf.image.resize_bilinear(conv4_3,
+        #                                     size = [4*conv4_3.get_shape()[1].value, 4 * conv4_3.get_shape()[2].value]
+        #                                     )
+    with tf.name_scope('Unpooling_4bis'):
+        unpool_4bis, unpool4bisvars = helpers.conv2d_transpose(pool2,
+                                               filters = net.numlabs,
+                                               ksize = [3,3],
+                                               layername = 'Unpool_4bis',
+                                               k_init = [0,0]
+                                               )
+        net.variables['16s'].extend(unpool4bisvars)
+        #unpool_3 = tf.image.resize_bilinear(pool2,
+        #                                     size = [2*pool2.get_shape()[1].value, 2 * pool2.get_shape()[2].value]
+        #                                     )
+    with tf.name_scope('Merge'):
+        with tf.name_scope('Resizing'):
+            #pred4, _ = helpers.conv2d(input=unpool4_2, layername = 'Reshape1',ksize=[1,1],filters=net.numlabs)
+            #pred3, _ = helpers.conv2d(input=unpool3, layername = 'Reshape2',ksize=[1,1],filters=net.numlabs)
+            pred2, pred2vars = helpers.conv2d(input=pool1, 
+                                              layername = 'Reshape3',
+                                              ksize=[1,1],
+                                              filters=net.numlabs,
+                                              k_init = [0,0]
+                                              )
+            net.variables['8s'].extend(pred2vars)
+        with tf.name_scope('Merging'):
+            #merged,_ = helpers.alternate_merge([pred4,pred3,pred2],
+            #                                   numlabs = net.numlabs,
+            #                                  ksize = [3,3]
+            #                                  )
+            merged = tf.add(unpool4_2,tf.add(pred2,unpool_4bis))
+    with tf.name_scope('Unpooling_2'):
+        unpool2,unpool2vars = helpers.conv2d_transpose(merged,
+                                                       net.numlabs,
+                                                       ksize=[3,3],
+                                                       layername='unpool2',
+                                                       relu = True
+                                                       )
+        net.variables['32s'].extend(unpool2vars)
+        #unpool2 = tf.image.resize_bilinear(merged,
+                                           #size = [8*merged.get_shape()[1].value, 8*merged.get_shape()[2].value]
+                                           #)
+    with tf.name_scope('Unpooling_3'):
+        unpool3, unpool3vars = helpers.conv2d_transpose(unpool2,
+                                                        net.numlabs,
+                                                        ksize=[3,3],
+                                                        layername = 'unpool3',
+                                                        relu = True
+                                                        )
+        net.variables['32s'].extend(unpool3vars)
+    with tf.name_scope('Unpooling_1'):
+        unpool1, unpool1vars = helpers.conv2d_transpose(unpool3,
+                                                        net.numlabs,
+                                                        ksize=[3,3],
+                                                        layername = 'unpool4',
+                                                        relu = False
+                                                        )
+        net.variables['32s'].extend(unpool1vars)
+    net.last_layer = unpool1
+    net.compute_output()
+    return net

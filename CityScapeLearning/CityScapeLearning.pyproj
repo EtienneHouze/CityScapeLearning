@@ -35,6 +35,7 @@
     <Compile Include="main.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Model.py" />
     <Compile Include="SegNet.py">
       <SubType>Code</SubType>
     </Compile>

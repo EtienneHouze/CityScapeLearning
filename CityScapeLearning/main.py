@@ -1,26 +1,11 @@
 import CityScapeLearning as city
 import helpers
+from Network import *
+from Model import Model
 
-city.train(train_dir = 'D:/EtienneData/trainsmalllesslabs',log_dir='log_day9/7',batch_size=10,epochs=20,train_size=1000,learning_rate=1e-4,imH=128,imW=256,num__labs=8, saving_path ='D:/EtienneData/models/day_9ter', loading_path=None)
 
-city.test('D:/EtienneData/valless',savedmodel = 'D:/EtienneData/models/day_9ter', num__labs = 8, num_im = 5)
+model_test = Model(name='model_test',saving_dir='D:/EtienneData/models/day_11/2', netbuilder = build_big_CNN_2skips,imH=256,imW=512,num_labs=8,last_cp='D:/EtienneData/models/day_11/2/model_test-300')
 
-#helpers.produce_training_dir(imdir='D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/val',
-#                             labeldir='D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/val',
-#                             crop=False,
-#                             outdir = 'D:/EtienneData/valless',
-#                             training_set_size=1000,
-#                             imH = 1024,
-#                             imW = 2048,
-#                             alllabels=False
-#                             )
+model_test.train(train_dir = 'D:/EtienneData/trainmediumlesslabs', log_dir='log_day11/2', batch_size = 10, train_size = 10000, epochs = 20, learning_rate = 1e-4, vars = ['32s'])
 
-#helpers.produce_training_dir(imdir='D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/val',
-#                             labeldir='D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/val',
-#                             crop=False,
-#                             outdir = 'D:/EtienneData/valall',
-#                             training_set_size=1000,
-#                             imH = 1024,
-#                             imW = 2048,
-#                             alllabels=True
-#                             )
+model_test.test(testdir = 'D:/EtienneData/valless',num_im=10)

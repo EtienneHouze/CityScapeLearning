@@ -15,18 +15,6 @@ from Network import *
 import helpers
 import random
 
-#batch_size = 10
-#trainsize = 1000
-#num_labs = 35
-
-
-# set = produce_training_set(imdir='D:/EtienneData/Cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train',labeldir='D:/EtienneData/Cityscapes/gtFine_trainvaltest/gtFine/train',training_set_size=1000)
-# batch = produce_mini_batch(trainingset=set, step = 0)
-# im = PIL.Image.fromarray(np.uint8(batch[0][0]))
-# lab = PIL.Image.fromarray(np.uint8(batch[0][1]))
-# im.show()
-##lab.show()
-# show_labelled_image(batch[0][1])
 
 
 def perso_loss(logits, labs, weights):
@@ -141,8 +129,7 @@ def total_loss(logits, label, weights, beta=0.0005):
 """
 
 
-def train(batch_size=10, train_size=1000, epochs=3, train_dir='D:/EtienneData/trainsmalllesslabs', log_dir='/log',
-          imW=256, imH=256, learning_rate=1e-4, num__labs=35, saving_path = None, loading_path = None):
+def train(graphbuilder, batch_size=10, train_size=1000, epochs=3, train_dir='D:/EtienneData/trainsmalllesslabs', log_dir='/log',imW=256, imH=256, learning_rate=1e-4, num__labs=35, saving_path = None, loading_path = None, savestep = 500):
     """
        Defines an runs a training session.
        @ args :
@@ -152,6 +139,12 @@ def train(batch_size=10, train_size=1000, epochs=3, train_dir='D:/EtienneData/tr
             - train_dir : path to the folder containing training images and labels
             - saver : path to the file to save the model
             - log_dir : path to the log folder for tensorboard info 
+            - imW, imH : width and height of the images
+            - learning rate : self explanatory
+            - num_labs : either 35 or 8
+            - saving_path : if defined, path to the checkpoints to save the model variables
+            - loading_path : if defined, path to the model variables to load
+            - savestep : how often the model will be saved.
     """
     num_labs = num__labs
     train_set, histo = helpers.produce_training_set(traindir=train_dir, trainsize=train_size,numlabs=num__labs)
@@ -168,7 +161,7 @@ def train(batch_size=10, train_size=1000, epochs=3, train_dir='D:/EtienneData/tr
                                     dtype=tf.float32)
 
         with tf.name_scope("Net"):
-            CNN = build_little_CNN_2skips_bilinupsambling(input=ins,numlab=num__labs)
+            CNN = graphbuilder(input=ins,numlab=num__labs)
         global_step = tf.Variable(initial_value=0,
                                     name='global_step',
                                     trainable=False)
@@ -217,13 +210,14 @@ def train(batch_size=10, train_size=1000, epochs=3, train_dir='D:/EtienneData/tr
                         feed_dict={ins: images, labs: labels, weigs : w})
                     print(test_loss, i, epoch)
                     trainWriter.add_summary(summary, step)
-        if (saving_path):
-            saver = tf.train.Saver()
-            print (saver.save(sess,
-                       save_path = saving_path,
-                       write_meta_graph = False
-                       )
-                   )
+                if (saving_path and step % savestep == 0):
+                    saver = tf.train.Saver()
+                    print (saver.save(sess,
+                               save_path = saving_path,
+                               global_step = step,
+                               write_meta_graph = False
+                               )
+                           )
 
 
 
@@ -247,7 +241,7 @@ def train(batch_size=10, train_size=1000, epochs=3, train_dir='D:/EtienneData/tr
 #    listims, listlabs = sess.run((ims,labs),feed_dict = {im_list : list[0],lab_list : list[1]})
 #    print('done')
 
-def test(testdir, savedmodel, num__labs = 8, num_im = 100, batch_size = 1,imH = 128,imW = 256):
+def test(testdir, netbuilder, savedmodel, num__labs = 8, num_im = 100, batch_size = 1,imH = 128,imW = 256):
     
     
     #Building the model
@@ -262,26 +256,26 @@ def test(testdir, savedmodel, num__labs = 8, num_im = 100, batch_size = 1,imH = 
                                     dtype=tf.float32)
 
         with tf.name_scope("Net"):
-            CNN = build_little_CNN_2skips_bilinupsambling(input=ins,numlab=num__labs)
-        global_step = tf.Variable(initial_value=0,
-                                    name='global_step',
-                                    trainable=False)
+            CNN = netbuilder(input=ins,numlab=num__labs)
+        #global_step = tf.Variable(initial_value=0,
+        #                            name='global_step',
+        #                            trainable=False)
 
-        with tf.name_scope('out'):
-            helpers.image_summaries(tf.expand_dims(input=CNN.output, axis=-1), name='output')
-            helpers.variable_summaries(tf.cast(CNN.output, dtype=tf.float32))
-        with tf.name_scope('labels'):
-            helpers.image_summaries(tf.expand_dims(input=labs, axis=-1), name='labels')
-            helpers.variable_summaries(tf.cast(labs, dtype=tf.float32))
+        #with tf.name_scope('out'):
+        #    helpers.image_summaries(tf.expand_dims(input=CNN.output, axis=-1), name='output')
+        #    helpers.variable_summaries(tf.cast(CNN.output, dtype=tf.float32))
+        #with tf.name_scope('labels'):
+        #    helpers.image_summaries(tf.expand_dims(input=labs, axis=-1), name='labels')
+        #    helpers.variable_summaries(tf.cast(labs, dtype=tf.float32))
 
         with tf.name_scope('Loss'):
             l = perso_loss(logits=CNN.last_layer, labs=labs, weights=weigs)
-            tf.summary.scalar(name='loss', tensor=l)
+            #tf.summary.scalar(name='loss', tensor=l)
 
     
     with tf.Session(graph = mainGraph) as sess:
         sess.run(tf.global_variables_initializer())
-        test_set = helpers.produce_testing_set(testdir, num_im)
+        test_set = helpers.produce_testing_set(testdir, num_im,imH=imH,imW = imW)
         loader = tf.train.Saver()
         loader.restore(sess, save_path = savedmodel)
             
