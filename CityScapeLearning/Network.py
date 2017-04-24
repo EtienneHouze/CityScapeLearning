@@ -1724,17 +1724,20 @@ def build_smallerCNN_upscaled(input,numlab):
                                                    filters = net.numlabs,
                                                    layername = 'resizing1',
                                                    ksize = [3,3],
-                                                   k_init = [0,0]
+                                                   #k_init = [0,0]
                                                    )
         conv3_resize, resize2vars = helpers.conv2d(input = conv3,
                                                    filters = net.numlabs,
                                                    layername = 'resizing2',
                                                    ksize = [3,3],
-                                                   k_init = [0,0]
+                                                   #k_init = [0,0]
                                                    )
         conv4_resize, resize3vars = helpers.conv2d(input = conv4,
                                                    filters = net.numlabs,
                                                    layername = 'resizing3')
+        helpers.variable_summaries(resize1vars[0])
+        helpers.variable_summaries(resize2vars[0])
+        helpers.variable_summaries(resize3vars[0])
         net.variables['8s'].extend(resize1vars)
         net.variables['16s'].extend(resize2vars)
         net.variables['32s'].extend(resize3vars)
