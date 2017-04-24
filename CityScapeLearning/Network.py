@@ -25,9 +25,16 @@ class Network:
     def __init__(self, input, name='net',numlab = 35):
         """
         Initialization of the network.
-        Args :
-            - input : a tensor of the inputs of the network
-       
+        @ Args :
+            - input : a 4D tensor of the inputs of the network
+            - name : a string
+            - numlab : the number of labels of the network
+        @ Fields :
+            - input : the 4D input tensor
+            - output : the batchsize*imH*imW*1 tensor containing the labelled prediction of the input.
+            - last_layer : a 4D batchsize*imH*imW*numlab tensor of logits
+            - variables : a dict containing lists of tensors storing the different variables to tune. This construction allows fine tuning in the training method.
+            
         """
         self.input = input
         self.batch_size = input.get_shape()[0].value
@@ -39,120 +46,114 @@ class Network:
         self.name = name
         self.numlabs = numlab
 
-    def add_FCLayer(self, layer_size, relu=True):
         """
-            Deprecated
-        """
-        in_size = self.layers[-1].get_shape().as_list()
-        layer_size = [self.batch_size] + layer_size
-        with tf.name_scope(self.name):
-            with tf.name_scope('FC_' + str(self.number_of_layers)):
-                W = tf.Variable(
-                    initial_value=tf.truncated_normal(shape=in_size[1:] + layer_size, stddev=10. / layer_size),
-                    dtype=tf.float32,
-                    name='Weights_FC_' + str(self.number_of_layers))
-                b = tf.Variable(initial_value=tf.random_uniform(shape=layer_size),
-                                dtype=tf.float32,
-                                name='Bias_FC_' + str(self.number_of_layers))
-                if (relu):
-                    h = tf.nn.relu(features=tf.tensordot(self.layers[-1],
-                                                         W,
-                                                         axes=len(in_size) - 1)
-                                            + b,
+            DEPRECATED
+        def add_FCLayer(self, layer_size, relu=True):
+     
+            in_size = self.layers[-1].get_shape().as_list()
+            layer_size = [self.batch_size] + layer_size
+            with tf.name_scope(self.name):
+                with tf.name_scope('FC_' + str(self.number_of_layers)):
+                    W = tf.Variable(
+                        initial_value=tf.truncated_normal(shape=in_size[1:] + layer_size, stddev=10. / layer_size),
+                        dtype=tf.float32,
+                        name='Weights_FC_' + str(self.number_of_layers))
+                    b = tf.Variable(initial_value=tf.random_uniform(shape=layer_size),
+                                    dtype=tf.float32,
+                                    name='Bias_FC_' + str(self.number_of_layers))
+                    if (relu):
+                        h = tf.nn.relu(features=tf.tensordot(self.layers[-1],
+                                                             W,
+                                                             axes=len(in_size) - 1)
+                                                + b,
+                                       name='FC_' + str(self.number_of_layers))
+                    else:
+                        h = tf.add(tf.tensordot(self.layers[-1],
+                                                W,
+                                                axes=len(in_size) - 1),
+                                   b,
                                    name='FC_' + str(self.number_of_layers))
-                else:
-                    h = tf.add(tf.tensordot(self.layers[-1],
-                                            W,
-                                            axes=len(in_size) - 1),
-                               b,
-                               name='FC_' + str(self.number_of_layers))
-                h.set_shape(layer_size)
-                self.variables.append(W)
-                self.variables.append(b)
-                self.layers.append(h)
-            self.number_of_layers += 1
+                    h.set_shape(layer_size)
+                    self.variables.append(W)
+                    self.variables.append(b)
+                    self.layers.append(h)
+                self.number_of_layers += 1
 
-    def add_conv_Layer(self, kernel_size, stride, padding, out_depth, relu=True):
-        """
-            Deprecated
-        """
-        with tf.name_scope(self.name):
-            with tf.name_scope('conv_' + str(self.number_of_layers)):
-                in_depth = self.layers[-1].get_shape()[-1].value
-                F = tf.Variable(initial_value=tf.truncated_normal(shape=kernel_size + [in_depth] + [out_depth],
-                                                                  stddev=10. / out_depth),
-                                dtype=tf.float32,
-                                name='Filter_conv_' + str(self.number_of_layers))
-                h = tf.nn.conv2d(input=self.layers[-1],
-                                 filter=F,
-                                 strides=stride,
-                                 padding=padding)
-                b = tf.Variable(initial_value=tf.zeros(h.get_shape()[1:]),
-                                dtype=tf.float32,
-                                name='Bias_conv_' + str(self.number_of_layers))
+        def add_conv_Layer(self, kernel_size, stride, padding, out_depth, relu=True):
+         
+            with tf.name_scope(self.name):
+                with tf.name_scope('conv_' + str(self.number_of_layers)):
+                    in_depth = self.layers[-1].get_shape()[-1].value
+                    F = tf.Variable(initial_value=tf.truncated_normal(shape=kernel_size + [in_depth] + [out_depth],
+                                                                      stddev=10. / out_depth),
+                                    dtype=tf.float32,
+                                    name='Filter_conv_' + str(self.number_of_layers))
+                    h = tf.nn.conv2d(input=self.layers[-1],
+                                     filter=F,
+                                     strides=stride,
+                                     padding=padding)
+                    b = tf.Variable(initial_value=tf.zeros(h.get_shape()[1:]),
+                                    dtype=tf.float32,
+                                    name='Bias_conv_' + str(self.number_of_layers))
 
-                if (relu):
-                    h = tf.nn.relu(tf.nn.conv2d(input=self.layers[-1],
+                    if (relu):
+                        h = tf.nn.relu(tf.nn.conv2d(input=self.layers[-1],
+                                                    filter=F,
+                                                    strides=stride,
+                                                    padding=padding) + b,
+                                       name='Conv_' + str(self.number_of_layers))
+                    else:
+                        h = tf.add(tf.nn.conv2d(input=self.layers[-1],
                                                 filter=F,
                                                 strides=stride,
-                                                padding=padding) + b,
+                                                padding=padding),
+                                   b,
                                    name='Conv_' + str(self.number_of_layers))
-                else:
-                    h = tf.add(tf.nn.conv2d(input=self.layers[-1],
-                                            filter=F,
-                                            strides=stride,
-                                            padding=padding),
-                               b,
-                               name='Conv_' + str(self.number_of_layers))
-                self.variables.append(F)
-                self.variables.append(b)
-                self.layers.append(h)
-            self.number_of_layers += 1
+                    self.variables.append(F)
+                    self.variables.append(b)
+                    self.layers.append(h)
+                self.number_of_layers += 1
 
-    def add_MaxPool_Layer(self, factor=2):
-        """
-            Deprecated
-        """
-        with tf.name_scope(self.name):
-            with tf.name_scope('Max_Pool_' + str(self.number_of_layers)):
-                self.last_layer = tf.nn.max_pool(self.last_layer,
-                                                 ksize=[1, 2, 2, 1],
-                                                 strides=[1, 2, 2, 1],
-                                                 name='Max_Pool_Layer_' + str(self.number_of_layers),
-                                                 padding='SAME')
+        def add_MaxPool_Layer(self, factor=2):
+           
+            with tf.name_scope(self.name):
+                with tf.name_scope('Max_Pool_' + str(self.number_of_layers)):
+                    self.last_layer = tf.nn.max_pool(self.last_layer,
+                                                     ksize=[1, 2, 2, 1],
+                                                     strides=[1, 2, 2, 1],
+                                                     name='Max_Pool_Layer_' + str(self.number_of_layers),
+                                                     padding='SAME')
 
-    def add_deconv_Layer(self, out_depth, relu=True):
-        """
-            Deprecated
-        """
-        with tf.name_scope(self.name):
-            with tf.name_scope('Deconv_Layer_' + str(self.number_of_layers)):
-                in_depth = self.layers[-1]._shape[-1].value
-                out_height = 2 * self.layers[-1]._shape[1].value
-                out_width = 2 * self.layers[-1]._shape[2].value
-                F = tf.Variable(initial_value=tf.truncated_normal(shape=[3, 3, out_depth, in_depth],
-                                                                  stddev=0.1,
-                                                                  dtype=tf.float32),
-                                name='Filter_Deconv_' + str(self.number_of_layers))
-                if (relu):
-                    h = tf.nn.relu(tf.nn.conv2d_transpose(value=self.layers[-1],
-                                                          filter=F,
-                                                          output_shape=[self.batch_size, out_height, out_width,
-                                                                        out_depth],
-                                                          strides=[1, 2, 2, 1],
-                                                          padding="SAME"),
-                                   name='Deconv_Layer_' + str(self.number_of_layers))
-                else:
-                    h = tf.nn.conv2d_transpose(value=self.layers[-1],
-                                               filter=F,
-                                               output_shape=[self.batch_size, out_height, out_width, out_depth],
-                                               strides=[1, 2, 2, 1],
-                                               padding="SAME",
-                                               name='Deconv_Layer_' + str(self.number_of_layers))
-                self.variables.append(F)
-                self.layers.append(h)
-            self.number_of_layers += 1
-
+        def add_deconv_Layer(self, out_depth, relu=True):
+           
+            with tf.name_scope(self.name):
+                with tf.name_scope('Deconv_Layer_' + str(self.number_of_layers)):
+                    in_depth = self.layers[-1]._shape[-1].value
+                    out_height = 2 * self.layers[-1]._shape[1].value
+                    out_width = 2 * self.layers[-1]._shape[2].value
+                    F = tf.Variable(initial_value=tf.truncated_normal(shape=[3, 3, out_depth, in_depth],
+                                                                      stddev=0.1,
+                                                                      dtype=tf.float32),
+                                    name='Filter_Deconv_' + str(self.number_of_layers))
+                    if (relu):
+                        h = tf.nn.relu(tf.nn.conv2d_transpose(value=self.layers[-1],
+                                                              filter=F,
+                                                              output_shape=[self.batch_size, out_height, out_width,
+                                                                            out_depth],
+                                                              strides=[1, 2, 2, 1],
+                                                              padding="SAME"),
+                                       name='Deconv_Layer_' + str(self.number_of_layers))
+                    else:
+                        h = tf.nn.conv2d_transpose(value=self.layers[-1],
+                                                   filter=F,
+                                                   output_shape=[self.batch_size, out_height, out_width, out_depth],
+                                                   strides=[1, 2, 2, 1],
+                                                   padding="SAME",
+                                                   name='Deconv_Layer_' + str(self.number_of_layers))
+                    self.variables.append(F)
+                    self.layers.append(h)
+                self.number_of_layers += 1
+    """
     def compute_output(self, top1=True):
         """
             Computes the output of the network.
@@ -312,6 +313,12 @@ class Network:
 
 """
     Grap builders
+    The following methods are used to build a network, and can be passed as arguments for the model building method.
+    @ args :
+        - input : a 4D tensor, the input of the network
+        - num_lab : the number of labels the network will have to classify
+    @ returns :
+        -net : a network object, with all fields completed, as according to the selected architecture.
 """
 
 def build_CNN(input,num_lab):
@@ -1427,7 +1434,7 @@ def build_big_CNN_2skips(input,numlab):
     net.compute_output()
     return net
 
-def build_CNN_dropouts(input,numlab):
+def build_small_CNN_dropouts(input,numlab):
     net = Network(input,numlab=numlab)
     net.variables['32s'] = []
     net.variables['16s'] = []
@@ -1452,36 +1459,33 @@ def build_CNN_dropouts(input,numlab):
                                         strides = 2,
                                         padding = 'SAME'
                                         )
+        pool0 = tf.layers.dropout(pool0,rate = 0.5)
     with tf.name_scope('Conv0bis'):
         with tf.name_scope('_1'):
             conv0bis_1, conv0bis_1vars = helpers.conv2d(input = pool0,
                                         filters = 128,
                                         layername='Conv0bis_1'
                                         )
-        with tf.name_scope('_2'):
-            conv0bis_2, conv0bis_2vars = helpers.conv2d(input = conv0bis_1,
-                                        filters = 128,
-                                        layername='Conv0bis_1'
-                                        )
             net.variables['32s'].extend(conv0bis_1vars)
-            net.variables['32s'].extend(conv0bis_2vars)
     with tf.name_scope('Pool0bis'):
-        pool0bis = tf.layers.max_pooling2d(inputs=conv0bis_2,
+        pool0bis = tf.layers.max_pooling2d(inputs=conv0bis_1,
                                         pool_size = [2,2],
                                         strides = 2,
                                         padding = 'SAME'
                                         )
+        pool0bis = tf.layers.dropout(pool0bis, rate = 0.5)
     with tf.name_scope('Conv1'):
         with tf.name_scope('_1'):
             conv1_1,conv1_1vars = helpers.conv2d(input = pool0bis,
-                                       filters = 64,
+                                       filters = 256,
                                        layername = 'Conv1_1'
                                        )
             helpers.variable_summaries(conv1_1vars[0])
         with tf.name_scope('_2'):
             conv1_2,conv1_2vars = helpers.conv2d(input = conv1_1,
-                                       filters = 64,
-                                       layername = 'Conv1_1'
+                                       filters = 256,
+                                       layername = 'Conv1_1',
+                                       ksize = [1,1]
                                        )
             net.variables['32s'].extend(conv1_1vars)
             net.variables['32s'].extend(conv1_2vars)
@@ -1491,18 +1495,20 @@ def build_CNN_dropouts(input,numlab):
                                         strides = 2,
                                         padding = 'SAME'
                                         )
+        pool1 = tf.layers.dropout(pool1,rate=0.2)
         helpers.inspect_layer(pool1,depth=0,name='pool1')
         helpers.inspect_layer(pool1,depth=10,name='pool1')
     with tf.name_scope('Conv2'):
         with tf.name_scope('_1'):
             conv2_1, conv2_1vars = helpers.conv2d(input = pool1,
-                                                  filters = 128,
+                                                  filters = 256,
                                                   layername = 'Conv2_1'
                                                   )
         with tf.name_scope('_2'):
             conv2_2, conv2_2vars = helpers.conv2d(input = conv2_1,
-                                       filters = 128,
-                                       layername = 'Conv2_2'
+                                       filters = 256,
+                                       layername = 'Conv2_2',
+                                       ksize = [1,1]
                                        )
             net.variables['32s'].extend(conv2_1vars)
             net.variables['32s'].extend(conv2_2vars)
@@ -1573,9 +1579,7 @@ def build_CNN_dropouts(input,numlab):
                                                             )
         net.variables['32s'].extend(unpool4_1vars)
         net.variables['32s'].extend(unpool4_2vars)
-        #unpool4_2 = tf.image.resize_bilinear(conv4_3,
-        #                                     size = [4*conv4_3.get_shape()[1].value, 4 * conv4_3.get_shape()[2].value]
-        #                                     )
+       
     with tf.name_scope('Unpooling_4bis'):
         unpool_4bis, unpool4bisvars = helpers.conv2d_transpose(pool2,
                                                filters = net.numlabs,
@@ -1584,13 +1588,8 @@ def build_CNN_dropouts(input,numlab):
                                                k_init = [0,0]
                                                )
         net.variables['16s'].extend(unpool4bisvars)
-        #unpool_3 = tf.image.resize_bilinear(pool2,
-        #                                     size = [2*pool2.get_shape()[1].value, 2 * pool2.get_shape()[2].value]
-        #                                     )
     with tf.name_scope('Merge'):
         with tf.name_scope('Resizing'):
-            #pred4, _ = helpers.conv2d(input=unpool4_2, layername = 'Reshape1',ksize=[1,1],filters=net.numlabs)
-            #pred3, _ = helpers.conv2d(input=unpool3, layername = 'Reshape2',ksize=[1,1],filters=net.numlabs)
             pred2, pred2vars = helpers.conv2d(input=pool1, 
                                               layername = 'Reshape3',
                                               ksize=[1,1],
@@ -1599,10 +1598,6 @@ def build_CNN_dropouts(input,numlab):
                                               )
             net.variables['8s'].extend(pred2vars)
         with tf.name_scope('Merging'):
-            #merged,_ = helpers.alternate_merge([pred4,pred3,pred2],
-            #                                   numlabs = net.numlabs,
-            #                                  ksize = [3,3]
-            #                                  )
             merged = tf.add(unpool4_2,tf.add(pred2,unpool_4bis))
     with tf.name_scope('Unpooling_2'):
         unpool2,unpool2vars = helpers.conv2d_transpose(merged,
@@ -1612,9 +1607,146 @@ def build_CNN_dropouts(input,numlab):
                                                        relu = True
                                                        )
         net.variables['32s'].extend(unpool2vars)
-        #unpool2 = tf.image.resize_bilinear(merged,
-                                           #size = [8*merged.get_shape()[1].value, 8*merged.get_shape()[2].value]
-                                           #)
+        
+    with tf.name_scope('Unpooling_3'):
+        unpool3, unpool3vars = helpers.conv2d_transpose(unpool2,
+                                                        net.numlabs,
+                                                        ksize=[3,3],
+                                                        layername = 'unpool3',
+                                                        relu = True
+                                                        )
+        net.variables['32s'].extend(unpool3vars)
+    with tf.name_scope('Unpooling_1'):
+        unpool1, unpool1vars = helpers.conv2d_transpose(unpool3,
+                                                        net.numlabs,
+                                                        ksize=[3,3],
+                                                        layername = 'unpool4',
+                                                        relu = False
+                                                        )
+        net.variables['32s'].extend(unpool1vars)
+    net.last_layer = unpool1
+    net.compute_output()
+    return net
+
+def build_smallerCNN_upscaled(input,numlab):
+    net = Network(input,numlab=numlab)
+    net.variables['32s'] = []
+    net.variables['16s'] = []
+    net.variables['8s'] = []
+
+    with tf.name_scope('Conv0'):
+        with tf.name_scope('_1'):
+            conv0_1, conv0_1vars = helpers.conv2d(input = net.input,
+                                        filters = 32,
+                                        layername='Conv0_1'
+                                        )
+        with tf.name_scope('_2'):
+            conv0_2, conv0_2vars = helpers.conv2d(input = conv0_1,
+                                        filters = 64,
+                                        layername='Conv0_1'
+                                        )
+            net.variables['32s'].extend(conv0_1vars)
+            net.variables['32s'].extend(conv0_2vars)
+    with tf.name_scope('Pool0'):
+        pool0 = tf.layers.max_pooling2d(inputs=conv0_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+        pool0 = tf.layers.dropout(pool0,rate = 0.5)
+    with tf.name_scope('Conv0bis'):
+        with tf.name_scope('_1'):
+            conv0bis_1, conv0bis_1vars = helpers.conv2d(input = pool0,
+                                        filters = 128,
+                                        layername='Conv0bis_1'
+                                        )
+            net.variables['32s'].extend(conv0bis_1vars)
+    with tf.name_scope('Pool0bis'):
+        pool0bis = tf.layers.max_pooling2d(inputs=conv0bis_1,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+        pool0bis = tf.layers.dropout(pool0bis, rate = 0.5)
+    with tf.name_scope('Conv1'):
+        with tf.name_scope('_1'):
+            conv1_1,conv1_1vars = helpers.conv2d(input = pool0bis,
+                                       filters = 256,
+                                       layername = 'Conv1_1'
+                                       )
+            helpers.variable_summaries(conv1_1vars[0])
+        with tf.name_scope('_2'):
+            conv1_2,conv1_2vars = helpers.conv2d(input = conv1_1,
+                                       filters = 256,
+                                       layername = 'Conv1_1',
+                                       ksize = [1,1]
+                                       )
+            net.variables['32s'].extend(conv1_1vars)
+            net.variables['32s'].extend(conv1_2vars)
+    with tf.name_scope('Pool1'):
+        pool1 = tf.layers.max_pooling2d(inputs=conv1_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+        pool1 = tf.layers.dropout(pool1,rate=0.2)
+        helpers.inspect_layer(pool1,depth=0,name='pool1')
+        helpers.inspect_layer(pool1,depth=10,name='pool1')
+    with tf.name_scope('Conv2'):
+        with tf.name_scope('_1'):
+            conv2_1, conv2_1vars = helpers.conv2d(input = pool1,
+                                                  filters = 256,
+                                                  layername = 'Conv2_1'
+                                                  )
+        with tf.name_scope('_2'):
+            conv2_2, conv2_2vars = helpers.conv2d(input = conv2_1,
+                                       filters = 256,
+                                       layername = 'Conv2_2',
+                                       ksize = [1,1]
+                                       )
+            net.variables['32s'].extend(conv2_1vars)
+            net.variables['32s'].extend(conv2_2vars)
+    with tf.name_scope('Conv3'):
+        conv3, conv3vars = helpers.conv2d_dilated(input=conv2_2,
+                                                  filters = 256,
+                                                  layername = 'Conv3',
+                                                  factor = 2)
+        net.variables['32s'].extend(conv3vars)
+    with tf.name_scope('Conv4'):
+        conv4, conv4vars = helpers.conv2d_dilated(input=conv3,
+                                                  filters = 512,
+                                                  layername = 'Conv4',
+                                                  factor = 4
+                                                  )
+        net.variables['32s'].extend(conv4vars)
+    with tf.name_scope('Merge'):
+        pool1_resize, resize1vars = helpers.conv2d(input = pool1,
+                                                   filters = net.numlabs,
+                                                   layername = 'resizing1',
+                                                   ksize = [3,3],
+                                                   k_init = [0,0]
+                                                   )
+        conv3_resize, resize2vars = helpers.conv2d(input = conv3,
+                                                   filters = net.numlabs,
+                                                   layername = 'resizing2',
+                                                   ksize = [3,3],
+                                                   k_init = [0,0]
+                                                   )
+        conv4_resize, resize3vars = helpers.conv2d(input = conv4,
+                                                   filters = net.numlabs,
+                                                   layername = 'resizing3')
+        net.variables['8s'].extend(resize1vars)
+        net.variables['16s'].extend(resize2vars)
+        net.variables['32s'].extend(resize3vars)
+        merged = tf.add(tf.add(pool1_resize,conv3_resize),conv4_resize)
+    with tf.name_scope('Unpooling_2'):
+        unpool2,unpool2vars = helpers.conv2d_transpose(merged,
+                                                       net.numlabs,
+                                                       ksize=[3,3],
+                                                       layername='unpool2',
+                                                       relu = True
+                                                       )
+        net.variables['32s'].extend(unpool2vars)     
     with tf.name_scope('Unpooling_3'):
         unpool3, unpool3vars = helpers.conv2d_transpose(unpool2,
                                                         net.numlabs,

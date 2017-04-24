@@ -503,7 +503,44 @@ def conv2d_transpose(input, filters, layername, k_init=[0.0,0.1], stride = [2,2]
     else:
         return (out,vars)
 
-""" DEPRECATED
+
+def conv2d_dilated(input, filters, layername, k_init = [0.0, 0.1], factor = 2, padding = 'SAME', relu = True, bias = True, ksize = [3,3]):
+    with tf.name_scope(layername+'_Variables'):
+        vars = []
+        with tf.name_scope('Kernel'):
+            K = tf.Variable(initial_value=tf.random_uniform(shape=[ksize[0],ksize[1],input.get_shape()[-1].value,filters],
+                                                                minval = k_init[0] - k_init[1],
+                                                                maxval = k_init[0] + k_init[1]),
+                            dtype = tf.float32
+                            )
+            vars.append(K)
+        if (bias):
+            with tf.name_scope('Bias'):
+                B = tf.Variable(initial_value = np.zeros(shape=[filters]),
+                                dtype = tf.float32
+                                )
+                vars.append(B)
+    if (bias):
+        out = tf.add(tf.nn.atrous_conv2d(value = input,
+                                filters = K,
+                                rate = factor,
+                                padding = padding
+                                ),
+                     B)
+    else:
+        out = tf.nn.atrous_conv2d(value = input,
+                                filters = K,
+                                rate = factor,
+                                padding = padding
+                                )
+    if (relu):
+        return (tf.nn.relu(out),vars)
+    else:
+        return (out,vars)
+
+
+""" 
+    DEPRECATED
     #def merge_layers(largelayer, smalllayer, num_of_ups=1, filters = num_labels):
         #vars = []
         #with tf.name_scope("equalizing_depths"):
