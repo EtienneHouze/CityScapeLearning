@@ -2062,3 +2062,88 @@ def build_smallerCNN_upscaled_only2pooldeeper(input,numlab):
     net.last_layer = unpool1
     net.compute_output()
     return net
+
+def build_upscaled_nopool_noskip(input,numlab):
+
+    net = Network(input,'net',numlab)
+    net.variables['32s'] = []
+
+    with tf.name_scope('Conv0'):
+        with tf.name_scope('_1'):
+            conv0_1, conv0_1vars = helpers.conv2d(input = net.input,
+                                        filters = 16,
+                                        layername='Conv0_1'
+                                        )
+        with tf.name_scope('_2'):
+            conv0_2, conv0_2vars = helpers.conv2d(input = conv0_1,
+                                        filters = 32,
+                                        layername='Conv0_1'
+                                        )
+        net.variables['32s'].extend(conv0_1vars)
+        net.variables['32s'].extend(conv0_2vars)
+    with tf.name_scope('Conv1'):
+        with tf.name_scope('_1'):
+            conv1_1,conv1_1vars = helpers.conv2d_dilated(input = conv0_2,
+                                                         filters = 64,
+                                                         layername = 'Conv1_1',
+                                                         factor = 2
+                                                         )
+        with tf.name_scope('_2'):
+            conv1_2, conv1_2vars = helpers.conv2d_dilated(input = conv1_1,
+                                                          filters = 64,
+                                                          layername = 'Conv1_2',
+                                                          factor = 2
+                                                          )
+        net.variables['32s'].extend(conv1_1vars)
+        net.variables['32s'].extend(conv1_2vars)
+    with tf.name_scope('Conv2'):
+        with tf.name_scope('_1'):
+            conv2_1,conv2_1vars = helpers.conv2d_dilated(input = conv1_2,
+                                                         filters = 128,
+                                                         layername = 'Conv2_1',
+                                                         factor = 4
+                                                         )
+        with tf.name_scope('_2'):
+            conv2_2, conv2_2vars = helpers.conv2d_dilated(input = conv2_1,
+                                                          filters = 128,
+                                                          layername = 'Conv2_2',
+                                                          factor = 4
+                                                          )
+        net.variables['32s'].extend(conv2_1vars)
+        net.variables['32s'].extend(conv2_2vars)
+    with tf.name_scope('Conv3'):
+        with tf.name_scope('_1'):
+                conv3_1,conv3_1vars = helpers.conv2d_dilated(input = conv2_2,
+                                                             filters = 128,
+                                                             layername = 'Conv3_1',
+                                                             factor = 8
+                                                             )
+        with tf.name_scope('_2'):
+            conv3_2, conv3_2vars = helpers.conv2d_dilated(input = conv3_1,
+                                                            filters = 128,
+                                                            layername = 'Conv3_2',
+                                                            factor = 8
+                                                            )
+        net.variables['32s'].extend(conv3_1vars)
+        net.variables['32s'].extend(conv3_2vars)
+    with tf.name_scope('Conv_4'):
+        with tf.name_scope('_1'):
+            conv4_1,conv4_1vars = helpers.conv2d_dilated(input = conv3_2,
+                                                         filters = 256,
+                                                         layername = 'Conv4_1',
+                                                         factor = 16
+                                                         )
+        with tf.name_scope('_2'):
+            conv4_2, conv4_2vars = helpers.conv2d(input = conv4_1,
+                                                  filters = net.numlabs,
+                                                  layername = 'Conv4_2',
+                                                  ksize = [1,1]
+                                                  )
+        net.variables['32s'].extend(conv4_1vars)
+        net.variables['32s'].extend(conv4_2vars)
+
+    net.last_layer = conv4_2
+    net.compute_output()
+
+    return net
+
