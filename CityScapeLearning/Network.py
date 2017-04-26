@@ -1738,6 +1738,15 @@ def build_smallerCNN_upscaled(input,numlab):
         helpers.variable_summaries(resize1vars[0])
         helpers.variable_summaries(resize2vars[0])
         helpers.variable_summaries(resize3vars[0])
+        with tf.name_scope('pool1_resize'):
+            helpers.variable_summaries(pool1_resize)
+            helpers.inspect_layer(pool1_resize,3,'pool1')
+        with tf.name_scope('conv3_resize'):
+            helpers.variable_summaries(conv3_resize)
+            helpers.inspect_layer(conv3_resize,3,'conv3')
+        with tf.name_scope('conv4_resize'):
+            helpers.variable_summaries(conv4_resize)
+            helpers.inspect_layer(conv4_resize,3,'conv4')
         net.variables['8s'].extend(resize1vars)
         net.variables['16s'].extend(resize2vars)
         net.variables['32s'].extend(resize3vars)
@@ -1760,6 +1769,290 @@ def build_smallerCNN_upscaled(input,numlab):
         net.variables['32s'].extend(unpool3vars)
     with tf.name_scope('Unpooling_1'):
         unpool1, unpool1vars = helpers.conv2d_transpose(unpool3,
+                                                        net.numlabs,
+                                                        ksize=[3,3],
+                                                        layername = 'unpool4',
+                                                        relu = False
+                                                        )
+        net.variables['32s'].extend(unpool1vars)
+    net.last_layer = unpool1
+    net.compute_output()
+    return net
+
+def build_smallerCNN_upscaled_only2pool(input,numlab):
+    net = Network(input,numlab=numlab)
+    net.variables['32s'] = []
+    net.variables['16s'] = []
+    net.variables['8s'] = []
+
+    with tf.name_scope('Conv0'):
+        with tf.name_scope('_1'):
+            conv0_1, conv0_1vars = helpers.conv2d(input = net.input,
+                                        filters = 32,
+                                        layername='Conv0_1'
+                                        )
+        with tf.name_scope('_2'):
+            conv0_2, conv0_2vars = helpers.conv2d(input = conv0_1,
+                                        filters = 64,
+                                        layername='Conv0_1'
+                                        )
+            net.variables['32s'].extend(conv0_1vars)
+            net.variables['32s'].extend(conv0_2vars)
+    with tf.name_scope('Conv0bis'):
+        with tf.name_scope('_1'):
+            conv0bis_1, conv0bis_1vars = helpers.conv2d_dilated(factor = 2,
+                                                                input = conv0_2,
+                                                                filters = 128,
+                                                                layername='Conv0bis_1'
+                                                                )
+            net.variables['32s'].extend(conv0bis_1vars)
+    with tf.name_scope('Pool0bis'):
+        pool0bis = tf.layers.max_pooling2d(inputs=conv0bis_1,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+        pool0bis = tf.layers.dropout(pool0bis, rate = 0.5)
+    with tf.name_scope('Conv1'):
+        with tf.name_scope('_1'):
+            conv1_1,conv1_1vars = helpers.conv2d_dilated(input = pool0bis,
+                                                         factor = 2,
+                                                         filters = 256,
+                                                         layername = 'Conv1_1'
+                                                         )
+            helpers.variable_summaries(conv1_1vars[0])
+        with tf.name_scope('_2'):
+            conv1_2,conv1_2vars = helpers.conv2d_dilated(input = conv1_1,
+                                                         factor = 2,
+                                                        filters = 256,
+                                                            layername = 'Conv1_1',
+                                                             ksize = [1,1]
+                                                             )
+            net.variables['32s'].extend(conv1_1vars)
+            net.variables['32s'].extend(conv1_2vars)
+    with tf.name_scope('Pool1'):
+        pool1 = tf.layers.max_pooling2d(inputs=conv1_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+        pool1 = tf.layers.dropout(pool1,rate=0.2)
+        helpers.inspect_layer(pool1,depth=0,name='pool1')
+        helpers.inspect_layer(pool1,depth=10,name='pool1')
+    with tf.name_scope('Conv2'):
+        with tf.name_scope('_1'):
+            conv2_1, conv2_1vars = helpers.conv2d_dilated(input = pool1,
+                                                          factor = 2,
+                                                  filters = 256,
+                                                  layername = 'Conv2_1'
+                                                  )
+        with tf.name_scope('_2'):
+            conv2_2, conv2_2vars = helpers.conv2d_dilated(input = conv2_1,
+                                                          factor = 2,
+                                       filters = 256,
+                                       layername = 'Conv2_2',
+                                       ksize = [1,1]
+                                       )
+            net.variables['32s'].extend(conv2_1vars)
+            net.variables['32s'].extend(conv2_2vars)
+    with tf.name_scope('Conv3'):
+        conv3, conv3vars = helpers.conv2d_dilated(input=conv2_2,
+                                                  filters = 256,
+                                                  layername = 'Conv3',
+                                                  factor = 4)
+        net.variables['32s'].extend(conv3vars)
+    with tf.name_scope('Conv4'):
+        conv4, conv4vars = helpers.conv2d_dilated(input=conv3,
+                                                  filters = 512,
+                                                  layername = 'Conv4',
+                                                  factor = 8
+                                                  )
+        net.variables['32s'].extend(conv4vars)
+    with tf.name_scope('Merge'):
+        pool1_resize, resize1vars = helpers.conv2d(input = pool1,
+                                                   filters = net.numlabs,
+                                                   layername = 'resizing1',
+                                                   ksize = [3,3],
+                                                   #k_init = [0,0]
+                                                   )
+        conv3_resize, resize2vars = helpers.conv2d(input = conv3,
+                                                   filters = net.numlabs,
+                                                   layername = 'resizing2',
+                                                   ksize = [3,3],
+                                                   #k_init = [0,0]
+                                                   )
+        conv4_resize, resize3vars = helpers.conv2d(input = conv4,
+                                                   filters = net.numlabs,
+                                                   layername = 'resizing3')
+        helpers.variable_summaries(resize1vars[0])
+        helpers.variable_summaries(resize2vars[0])
+        helpers.variable_summaries(resize3vars[0])
+        with tf.name_scope('pool1_resize'):
+            helpers.variable_summaries(pool1_resize)
+            helpers.inspect_layer(pool1_resize,3,'pool1')
+        with tf.name_scope('conv3_resize'):
+            helpers.variable_summaries(conv3_resize)
+            helpers.inspect_layer(conv3_resize,3,'conv3')
+        with tf.name_scope('conv4_resize'):
+            helpers.variable_summaries(conv4_resize)
+            helpers.inspect_layer(conv4_resize,3,'conv4')
+        net.variables['8s'].extend(resize1vars)
+        net.variables['16s'].extend(resize2vars)
+        net.variables['32s'].extend(resize3vars)
+        merged = tf.add(tf.add(pool1_resize,conv3_resize),conv4_resize)
+    with tf.name_scope('Unpooling_2'):
+        unpool2,unpool2vars = helpers.conv2d_transpose(merged,
+                                                       net.numlabs,
+                                                       ksize=[3,3],
+                                                       layername='unpool2',
+                                                       relu = True
+                                                       )
+        net.variables['32s'].extend(unpool2vars)     
+    
+    with tf.name_scope('Unpooling_1'):
+        unpool1, unpool1vars = helpers.conv2d_transpose(unpool2,
+                                                        net.numlabs,
+                                                        ksize=[3,3],
+                                                        layername = 'unpool4',
+                                                        relu = False
+                                                        )
+        net.variables['32s'].extend(unpool1vars)
+    net.last_layer = unpool1
+    net.compute_output()
+    return net
+
+def build_smallerCNN_upscaled_only2pooldeeper(input,numlab):
+    net = Network(input,numlab=numlab)
+    net.variables['32s'] = []
+    net.variables['16s'] = []
+    net.variables['8s'] = []
+
+    with tf.name_scope('Conv0'):
+        with tf.name_scope('_1'):
+            conv0_1, conv0_1vars = helpers.conv2d(input = net.input,
+                                        filters = 32,
+                                        layername='Conv0_1'
+                                        )
+        with tf.name_scope('_2'):
+            conv0_2, conv0_2vars = helpers.conv2d(input = conv0_1,
+                                        filters = 64,
+                                        layername='Conv0_1'
+                                        )
+            net.variables['32s'].extend(conv0_1vars)
+            net.variables['32s'].extend(conv0_2vars)
+    with tf.name_scope('Conv0bis'):
+        with tf.name_scope('_1'):
+            conv0bis_1, conv0bis_1vars = helpers.conv2d_dilated(factor = 2,
+                                                                input = conv0_2,
+                                                                filters = 128,
+                                                                layername='Conv0bis_1'
+                                                                )
+            net.variables['32s'].extend(conv0bis_1vars)
+    with tf.name_scope('Pool0bis'):
+        pool0bis = tf.layers.max_pooling2d(inputs=conv0bis_1,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+        pool0bis = tf.layers.dropout(pool0bis, rate = 0.5)
+    with tf.name_scope('Conv1'):
+        with tf.name_scope('_1'):
+            conv1_1,conv1_1vars = helpers.conv2d_dilated(input = pool0bis,
+                                                         factor = 2,
+                                                         filters = 256,
+                                                         layername = 'Conv1_1'
+                                                         )
+            helpers.variable_summaries(conv1_1vars[0])
+        with tf.name_scope('_2'):
+            conv1_2,conv1_2vars = helpers.conv2d_dilated(input = conv1_1,
+                                                         factor = 2,
+                                                        filters = 256,
+                                                            layername = 'Conv1_1',
+                                                             ksize = [1,1]
+                                                             )
+            net.variables['32s'].extend(conv1_1vars)
+            net.variables['32s'].extend(conv1_2vars)
+    with tf.name_scope('Pool1'):
+        pool1 = tf.layers.max_pooling2d(inputs=conv1_2,
+                                        pool_size = [2,2],
+                                        strides = 2,
+                                        padding = 'SAME'
+                                        )
+        pool1 = tf.layers.dropout(pool1,rate=0.2)
+        helpers.inspect_layer(pool1,depth=0,name='pool1')
+        helpers.inspect_layer(pool1,depth=10,name='pool1')
+    with tf.name_scope('Conv2'):
+        with tf.name_scope('_1'):
+            conv2_1, conv2_1vars = helpers.conv2d_dilated(input = pool1,
+                                                          factor = 2,
+                                                  filters = 256,
+                                                  layername = 'Conv2_1'
+                                                  )
+        with tf.name_scope('_2'):
+            conv2_2, conv2_2vars = helpers.conv2d_dilated(input = conv2_1,
+                                                          factor = 2,
+                                       filters = 256,
+                                       layername = 'Conv2_2',
+                                       ksize = [1,1]
+                                       )
+            net.variables['32s'].extend(conv2_1vars)
+            net.variables['32s'].extend(conv2_2vars)
+    with tf.name_scope('Conv3'):
+        conv3, conv3vars = helpers.conv2d_dilated(input=conv2_2,
+                                                  filters = 256,
+                                                  layername = 'Conv3',
+                                                  factor = 4)
+        net.variables['32s'].extend(conv3vars)
+    with tf.name_scope('Conv4'):
+        conv4, conv4vars = helpers.conv2d_dilated(input=conv3,
+                                                  filters = 512,
+                                                  layername = 'Conv4',
+                                                  factor = 8
+                                                  )
+        net.variables['32s'].extend(conv4vars)
+    with tf.name_scope('Merge'):
+        pool1_resize, resize1vars = helpers.conv2d(input = pool1,
+                                                   filters = net.numlabs*8,
+                                                   layername = 'resizing1',
+                                                   ksize = [3,3],
+                                                   #k_init = [0,0]
+                                                   )
+        conv3_resize, resize2vars = helpers.conv2d(input = conv3,
+                                                   filters = net.numlabs*8,
+                                                   layername = 'resizing2',
+                                                   ksize = [3,3],
+                                                   #k_init = [0,0]
+                                                   )
+        conv4_resize, resize3vars = helpers.conv2d(input = conv4,
+                                                   filters = net.numlabs*8,
+                                                   layername = 'resizing3')
+        helpers.variable_summaries(resize1vars[0])
+        helpers.variable_summaries(resize2vars[0])
+        helpers.variable_summaries(resize3vars[0])
+        with tf.name_scope('pool1_resize'):
+            helpers.variable_summaries(pool1_resize)
+            helpers.inspect_layer(pool1_resize,3,'pool1')
+        with tf.name_scope('conv3_resize'):
+            helpers.variable_summaries(conv3_resize)
+            helpers.inspect_layer(conv3_resize,3,'conv3')
+        with tf.name_scope('conv4_resize'):
+            helpers.variable_summaries(conv4_resize)
+            helpers.inspect_layer(conv4_resize,3,'conv4')
+        net.variables['8s'].extend(resize1vars)
+        net.variables['16s'].extend(resize2vars)
+        net.variables['32s'].extend(resize3vars)
+        merged = tf.add(tf.add(pool1_resize,conv3_resize),conv4_resize)
+    with tf.name_scope('Unpooling_2'):
+        unpool2,unpool2vars = helpers.conv2d_transpose(merged,
+                                                       net.numlabs*4,
+                                                       ksize=[3,3],
+                                                       layername='unpool2',
+                                                       relu = True
+                                                       )
+        net.variables['32s'].extend(unpool2vars)     
+    
+    with tf.name_scope('Unpooling_1'):
+        unpool1, unpool1vars = helpers.conv2d_transpose(unpool2,
                                                         net.numlabs,
                                                         ksize=[3,3],
                                                         layername = 'unpool4',

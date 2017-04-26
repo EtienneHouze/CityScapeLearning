@@ -23,7 +23,7 @@ def perso_loss(logits, labs, weights):
         @ args :
             - logits = 4D tensor (batch*width*height*num_classes), the logits coded in the last dimension
             - labs : 3D tensor containing the labels (batch*width*height)
-            - num_classes : number of classes
+            - weights : a 2D tensor (batch*num_classes) tensors, containing the frequency of the different classes.
         @ returns :
             - a scalar, the mean across the batch of the weighted cross entropy
     """
@@ -35,16 +35,22 @@ def perso_loss(logits, labs, weights):
     # with tf.name_scope('Weights'):
     #    helpers.variable_summaries(weights)
     epsilon = tf.constant(value=1e-30)
-    labs = tf.one_hot(tf.cast(labs, dtype=tf.int32), weights.get_shape()[-1].value)
-    weights = 1/(weights+1e-2)
-    weights = tf.expand_dims(weights,1)
-    weights = tf.expand_dims(weights,1)
-    weights = tf.tile(weights,multiples=[1,logits.get_shape()[1].value,logits.get_shape()[2].value,1])
+    labs_one = tf.one_hot(tf.cast(labs, dtype=tf.int32), weights.get_shape()[-1].value)
+    weights_inv = 1/(weights+1e-10)
+    weights_inv = tf.expand_dims(weights_inv,1)
+    weights_inv = tf.expand_dims(weights_inv,1)
+    weights_inv = tf.tile(weights_inv,multiples=[1,logits.get_shape()[1].value,logits.get_shape()[2].value,1])
     softmax = tf.nn.softmax(logits)
-    logits_flat = tf.reshape(softmax, shape=[-1, weights.get_shape()[-1].value])
-    label_flat = tf.reshape(labs, shape=[-1, weights.get_shape()[-1].value])
-    return -tf.reduce_mean(
-                             tf.reduce_sum(tf.multiply(tf.multiply(labs, tf.log(softmax + epsilon)), weights), axis=[1]))
+    #logits_flat = tf.reshape(softmax, shape=[-1, weights.get_shape()[-1].value])
+    #label_flat = tf.reshape(labs, shape=[-1, weights.get_shape()[-1].value])
+    return -tf.reduce_mean(tf.reduce_sum(tf.multiply(tf.multiply(labs_one,
+                                                                tf.log(softmax + epsilon)
+                                                                ),
+                                                     #weights_inv),
+                                                     1),
+                                         axis=[1,2,3]
+                                         )
+                           )
 
 
 def loss(logits, labs):

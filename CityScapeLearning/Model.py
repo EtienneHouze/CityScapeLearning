@@ -64,7 +64,8 @@ class Model:
             global_step = tf.Variable(initial_value=0,
                                         name='global_step',
                                         trainable=False)
-
+            with tf.name_scope('inputs'):
+                helpers.image_summaries(ins)
             with tf.name_scope('out'):
                 helpers.image_summaries(tf.expand_dims(input=CNN.output, axis=-1), name='output')
                 helpers.variable_summaries(tf.cast(CNN.output, dtype=tf.float32))
@@ -98,7 +99,7 @@ class Model:
             sess.run(tf.global_variables_initializer())
 
             if (self.last_cp and len(self.trained_vars) != 0):
-                trained_var_list = []
+                trained_var_list = [global_step]
                 for var in self.trained_vars:
                     trained_var_list.extend(CNN.variables[var])
                 loader = tf.train.Saver(trained_var_list)
@@ -114,14 +115,14 @@ class Model:
                         _, out, test_layer, test_loss, summary, step = sess.run(
                             (train_step, CNN.output, CNN.last_layer, l, merged, global_step),
                             feed_dict={ins: images, labs: labels, weigs : w})
-                        print(test_loss, i, epoch)
+                        print( 'At step ' + str(i) + ' in epoch ' + str(epoch) +', loss is ' +str(test_loss))
                         trainWriter.add_summary(summary, step)
                     else:
                         [images, labels, w] = helpers.produce_mini_batch(train_set, step=i, imW=imW, imH=imH, batch_size=batch_size, numlabs = num_labs)
                         _, out, test_layer, test_loss, summary, step = sess.run(
                             (train_step, CNN.output, CNN.last_layer, l, merged, global_step),
                             feed_dict={ins: images, labs: labels, weigs : w})
-                        print(test_loss, i, epoch)
+                        print( 'At step ' + str(i) + ' in epoch ' + str(epoch) +', loss is ' +str(test_loss))
                         trainWriter.add_summary(summary, step)
                     if (step % savestep == 0):
                         saver = tf.train.Saver()
@@ -197,6 +198,7 @@ class Model:
                                 TN += 1
                     IOU[lab_ind] = TP/(TP+FP+FN)
                     acc[lab_ind] = (TP + TN) / (TP+TN+FP+FN)
+                    print('For label' + str(lab_ind) + ', IOU is ' +str(IOU[lab_ind]))
                 IOU_mean = np.mean(IOU)
                 acc_mean = np.mean(acc)
                 tot_IOU[i] = IOU_mean
