@@ -12,8 +12,8 @@
     <OutputPath>.</OutputPath>
     <Name>CityScapeLearning</Name>
     <RootNamespace>CityScapeLearning</RootNamespace>
-    <IsWindowsApplication>True</IsWindowsApplication>
-    <InterpreterId>{01f3e3ea-0baa-4b10-89de-9ad4c3fc6d2e}</InterpreterId>
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <InterpreterId>{fe465b21-97f3-43dc-937e-498eafa3d8d9}</InterpreterId>
     <InterpreterVersion>3.5</InterpreterVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -44,6 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="{01f3e3ea-0baa-4b10-89de-9ad4c3fc6d2e}\3.5" />
+    <InterpreterReference Include="{fe465b21-97f3-43dc-937e-498eafa3d8d9}\3.5" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
