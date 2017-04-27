@@ -538,6 +538,113 @@ def conv2d_dilated(input, filters, layername, k_init = [0.0, 0.1], factor = 2, p
     else:
         return (out,vars)
 
+def prelu(input):
+    alphas = tf.Variable(initial_value = tf.zeros(shape = [input.get_shape()[-1].value],
+                                                  dtype = tf.float32
+                                                  )
+                         )
+    pos = tf.nn.relu(input)
+    neg = alphas * (input - abs(input)) * 0.5
+
+    return (pos+neg, alphas)
+
+def bottleneck(input, filters, prelu = True, scale = 1, asym = False, kinit = [0,0.1], dropout = 0):
+    vars = []
+    with tf.name_scope('Conv1'):
+        with tf.name_scope('Kernel'):
+            k1 = tf.Variable(initial_value = tf.random_uniform(shape = [1,1,input.get_shape()[-1].value, int(filters/4)],
+                                                               minval = kinit[0]-kinit[1],
+                                                               maxval = kinit[0]+kinit[1]
+                                                               )
+                             )
+            vars.append(k1)
+        output = tf.nn.conv2d(input = input,
+                             strides = [1,1,1,1],
+                             padding = 'SAME',
+                             filter = k1
+                             )
+    with tf.name_scope('Normalization1'):
+        mean, var = tf.nn.moments(x = output, axes = [-1])
+        output = (output - mean) / ( var + 1e-30)
+    with tf.name_scope('Activation1'):
+        output, alpha1 = prelu(output)
+        vars.append(alpha1)
+    with tf.name_scope('Conv2'):
+        if (not asym):
+            with tf.name_scope('Kernel'):
+                k2 = tf.Variable(initial_value = tf.random_uniform(shape = [3,3,int(filters/4), int(filters/4)],
+                                                                   minval = kinit[0]-kinit[1],
+                                                                   maxval = kinit[0]+kinit[1]
+                                                                   )
+                                 )
+                vars.append(k2)
+            output = tf.nn.atrous_conv2d(value = output,
+                                         rate = factor,
+                                         padding = 'SAME',
+                                         filters = k2
+                                         )
+        else:
+            with tf.name_scope('Kernel'):
+                k2_1 = tf.Variable(initial_value = tf.random_uniform(shape = [1,5,int(filters/4), int(filters/4)],
+                                                                   minval = kinit[0]-kinit[1],
+                                                                   maxval = kinit[0]+kinit[1]
+                                                                   )
+                                 )
+                k2_2 = tf.Variable(initial_value = tf.random_uniform(shape = [5,1,int(filters/4), int(filters/4)],
+                                                                   minval = kinit[0]-kinit[1],
+                                                                   maxval = kinit[0]+kinit[1]
+                                                                   )
+                                 )
+                vars.append(k2_1)
+                vars.append(k2_2)
+            output = tf.nn.atrous_conv2d(value = output,
+                                         rate = factor,
+                                         padding = 'SAME',
+                                         filters = k2_1
+                                         )
+            output = tf.nn.atrous_conv2d(value = output,
+                                         rate = factor,
+                                         padding = 'SAME',
+                                         filters = k2_2
+                                         )
+    with tf.name_scope('Normalization2'):
+            mean, var = tf.nn.moments(x = output, axes = [-1])
+            output = (output - mean) / ( var + 1e-30)
+    with tf.name_scope('Activation2'):
+            output, alpha2 = prelu(output)
+            vars.append(alpha2)
+    with tf.name_scope('Conv3'):
+        with tf.name_scope('Kernel'):
+            k3 = tf.Variable(initial_value = tf.random_uniform(shape = [1,1, int(filters/4), filters],
+                                                               minval = kinit[0]-kinit[1],
+                                                               maxval = kinit[0]+kinit[1]
+                                                               )
+                             )
+            vars.append(k3)
+        output = tf.nn.conv2d(input = output,
+                             strides = [1,1,1,1],
+                             padding = 'SAME',
+                             filter = k1
+                             )
+    if dropout > 0 :
+        with tf.name_scope('Dropout'):
+            output = tf.nn.dropout(x = output,
+                                   keep_prob = dropout
+                                   )
+    if (filters > input.get_shape()[-1].value):
+        with tf.name_scope('Padding'):
+            input = tf.pad(tensor = input,
+                           paddings = [ [0,0], [0,0], [0,0],[0, filters - input.get_shape()[-1].value]],
+                           mode = 'CONSTANT'
+                           )
+    with tf.name_scope('Fusion'):
+        output = tf.add(output,input)
+    with tf.name_scope('Activation3'):
+        output, alpha3 = prelu(output)
+        vars.append(alpha3)
+    return (output, vars)
+
+
 
 """ 
     DEPRECATED
