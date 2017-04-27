@@ -149,7 +149,7 @@ class Model:
                                         dtype=tf.float32)
                 labs = tf.placeholder(shape=(batch_size, imH, imW),
                                         dtype=tf.int32)
-                weigs = tf.placeholder(shape=(batch_size,self.num_labs),
+                weigs = tf.placeholder(shape=(self.num_labs),
                                         dtype=tf.float32)
 
             with tf.name_scope("Net"):
@@ -161,7 +161,7 @@ class Model:
         with tf.Session(graph = mainGraph) as sess:
             print("Restoring variables")
             sess.run(tf.global_variables_initializer())
-            test_set = helpers.produce_testing_set(testdir, num_im,imH=imH,imW = imW)
+            test_set = helpers.produce_testing_set(testdir, num_im,imH=128,imW = imW)
             if (self.last_cp and len(self.trained_vars) != 0):
                 trained_var_list = []
                 for var in self.trained_vars:
@@ -176,7 +176,7 @@ class Model:
             print("Done ! \n")
             for i in range(num_im):
                 [images, labels, w] = helpers.produce_mini_batch(test_set, step=i, imW=imW, imH=imH, batch_size=batch_size, numlabs=self.num_labs)
-                preds, test_loss = sess.run((CNN.output,l),feed_dict = {ins : images, labs : labels, weigs : w})
+                preds, test_loss = sess.run((CNN.output,l),feed_dict = {ins : images, labs : labels, weigs : w[0]})
                 print("Image "+str(i)+" :")
                 print("==============================")
                 print("     Loss is : " + str(test_loss))
