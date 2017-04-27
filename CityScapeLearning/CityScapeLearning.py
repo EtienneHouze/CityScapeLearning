@@ -77,8 +77,11 @@ def loss(logits, labs):
     )
 
 
-def total_loss(logits, label, weights, beta=0.0005):
-    return perso_loss(logits, label, weights) + beta * tf.nn.l2_loss(logits)
+def total_loss(logits, label, weights, beta=0.0005, varslist = []):
+    l = perso_loss(logits, label, weights)
+    for var in varslist:
+        l += beta * tf.nn.l2_loss(var)
+    return l
 
 
 
