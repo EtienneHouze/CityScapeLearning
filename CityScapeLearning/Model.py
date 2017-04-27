@@ -161,7 +161,7 @@ class Model:
         with tf.Session(graph = mainGraph) as sess:
             print("Restoring variables")
             sess.run(tf.global_variables_initializer())
-            test_set = helpers.produce_testing_set(testdir, num_im,imH=128,imW = imW)
+            test_set = helpers.produce_testing_set(testdir, num_im,imH=256,imW = imW)
             if (self.last_cp and len(self.trained_vars) != 0):
                 trained_var_list = []
                 for var in self.trained_vars:
