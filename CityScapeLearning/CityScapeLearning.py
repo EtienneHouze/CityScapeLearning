@@ -37,17 +37,18 @@ def perso_loss(logits, labs, weights):
     epsilon = tf.constant(value=1e-30)
     labs_one = tf.one_hot(tf.cast(labs, dtype=tf.int32), weights.get_shape()[-1].value)
     weights_inv = 1/(weights+1e-10)
-    weights_inv = tf.expand_dims(weights_inv,1)
-    weights_inv = tf.expand_dims(weights_inv,1)
-    weights_inv = tf.tile(weights_inv,multiples=[1,logits.get_shape()[1].value,logits.get_shape()[2].value,1])
+    weights_inv = tf.expand_dims(weights_inv,0)
+    weights_inv = tf.expand_dims(weights_inv,0)
+    weights_inv = tf.expand_dims(weights_inv,0)
+    weights_inv = tf.tile(weights_inv,multiples=[logits.get_shape()[0].value,logits.get_shape()[1].value,logits.get_shape()[2].value,1])
     softmax = tf.nn.softmax(logits)
     #logits_flat = tf.reshape(softmax, shape=[-1, weights.get_shape()[-1].value])
     #label_flat = tf.reshape(labs, shape=[-1, weights.get_shape()[-1].value])
     return -tf.reduce_mean(tf.reduce_sum(tf.multiply(tf.multiply(labs_one,
                                                                 tf.log(softmax + epsilon)
                                                                 ),
-                                                     #weights_inv),
-                                                     1),
+                                                     weights_inv),
+                                                     #1),
                                          axis=[1,2,3]
                                          )
                            )
@@ -158,7 +159,7 @@ def train(graphbuilder, batch_size=10, train_size=1000, epochs=3, train_dir='D:/
     num_labs = num__labs
     train_set, histo = helpers.produce_training_set(traindir=train_dir, trainsize=train_size,numlabs=num__labs)
     freqs = histo / np.sum(histo)
-    weights = 1/freqs
+    #weights = 1/freqs
     mainGraph = tf.Graph()
     with mainGraph.as_default():
         with tf.name_scope('Input'):
@@ -208,7 +209,7 @@ def train(graphbuilder, batch_size=10, train_size=1000, epochs=3, train_dir='D:/
                     run_meta = tf.RunMetadata()
                     _, out, test_layer, test_loss, summary, step = sess.run(
                         (train_step, CNN.output, CNN.last_layer, l, merged, global_step),
-                        feed_dict={ins: images, labs: labels, weigs : w})
+                        feed_dict={ins: images, labs: labels, weigs : freqs})
                     print(test_loss, i, epoch)
                     trainWriter.add_run_metadata(run_meta, 'step%d' % step)
                     trainWriter.add_summary(summary, step)
@@ -216,7 +217,7 @@ def train(graphbuilder, batch_size=10, train_size=1000, epochs=3, train_dir='D:/
                     [images, labels, w] = helpers.produce_mini_batch(train_set, step=i, imW=imW, imH=imH, batch_size=batch_size, numlabs = num__labs)
                     _, out, test_layer, test_loss, summary, step = sess.run(
                         (train_step, CNN.output, CNN.last_layer, l, merged, global_step),
-                        feed_dict={ins: images, labs: labels, weigs : w})
+                        feed_dict={ins: images, labs: labels, weigs : freqs})
                     print(test_loss, i, epoch)
                     trainWriter.add_summary(summary, step)
                 if (saving_path and step % savestep == 0):

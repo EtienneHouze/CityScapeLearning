@@ -49,6 +49,7 @@ class Model:
         imH = self.imH
         imW = self.imW
         train_set, histo = helpers.produce_training_set(traindir=train_dir,trainsize=train_size,numlabs=num_labs)
+        freqs = histo/np.sum(histo)
         mainGraph = tf.Graph()
         with mainGraph.as_default():
             with tf.name_scope('Input'):
@@ -56,7 +57,7 @@ class Model:
                                         dtype=tf.float32)
                 labs = tf.placeholder(shape=(batch_size, self.imH, self.imW),
                                         dtype=tf.int32)
-                weigs = tf.placeholder(shape=(batch_size,num_labs),
+                weigs = tf.placeholder(shape=(num_labs),
                                         dtype=tf.float32)
 
             with tf.name_scope("Net"):
@@ -114,14 +115,14 @@ class Model:
                         [images, labels, w] = helpers.produce_mini_batch(train_set, step=i, imW=imW, imH=imH, batch_size=batch_size, numlabs=num_labs)
                         _, out, test_layer, test_loss, summary, step = sess.run(
                             (train_step, CNN.output, CNN.last_layer, l, merged, global_step),
-                            feed_dict={ins: images, labs: labels, weigs : w})
+                            feed_dict={ins: images, labs: labels, weigs : freqs})
                         print( 'At step ' + str(i) + ' in epoch ' + str(epoch) +', loss is ' +str(test_loss))
                         trainWriter.add_summary(summary, step)
                     else:
                         [images, labels, w] = helpers.produce_mini_batch(train_set, step=i, imW=imW, imH=imH, batch_size=batch_size, numlabs = num_labs)
                         _, out, test_layer, test_loss, summary, step = sess.run(
                             (train_step, CNN.output, CNN.last_layer, l, merged, global_step),
-                            feed_dict={ins: images, labs: labels, weigs : w})
+                            feed_dict={ins: images, labs: labels, weigs : freqs})
                         print( 'At step ' + str(i) + ' in epoch ' + str(epoch) +', loss is ' +str(test_loss))
                         trainWriter.add_summary(summary, step)
                     if (step % savestep == 0):
