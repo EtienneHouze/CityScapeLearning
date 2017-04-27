@@ -264,3 +264,34 @@ class Model:
             Out = Image.fromarray(out_view)
             Out.show()
             print("test")
+
+    def compute_and_save(self, imlist, orig_imH, orig_imW, outdir):
+        mainGraph = tf.Graph()
+
+        with mainGraph.as_default():
+            with tf.name_scope('Input'):
+                ins = tf.placeholder(shape=[1,self.imH,self.imW,3],
+                                     dtype = tf.float32)
+            with tf.name_scope('Net'):
+                net = self.netbuilder(input = ins,
+                                      numlab = self.num_labs)
+
+        with tf.Session(graph = mainGraph) as sess:
+            sess.run(tf.global_variables_initializer())
+            trained_var_list = []
+            if (self.last_cp and len(self.trained_vars) > 0):
+                for var in self.trained_vars:
+                    trained_var_list.extend(net.variables[var])
+                loader = tf.train.Saver(trained_var_list)
+                loader.restore(sess,self.last_cp)
+            i = 0
+            for im_name in imlist:
+                Im = Image.open(im_name)
+                Im.thumbnail(size = (orig_imW,orig_imH))
+                im_array = np.asarray(Im,dtype = np.float32)
+                im_array = im_array[:self.imH,:self.imW,:]
+                out = sess.run(net.output, feed_dict = {ins : im_array})
+                Out = Image.fromarray(out)
+                Image.save(join(outdir,str(i)+'.png'))
+                im += 1
+
