@@ -266,6 +266,15 @@ class Model:
             print("test")
 
     def compute_and_save(self, imlist, orig_imH, orig_imW, outdir):
+        """
+            Computes and save the images designated in imlist.
+            @ args :
+                - imlist : a list of image names
+                - orig_imH, orig_imW : size the image will have to be resized before crop.
+                - outdire : path to the output directory
+            @ returns :
+                - nothing, but writes the output of the model applied to the images in the output directory.
+        """
         mainGraph = tf.Graph()
 
         with mainGraph.as_default():
