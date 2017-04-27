@@ -290,8 +290,10 @@ class Model:
                 Im.thumbnail(size = (orig_imW,orig_imH))
                 im_array = np.asarray(Im,dtype = np.float32)
                 im_array = im_array[:self.imH,:self.imW,:]
+                im_array = np.expand_dims(im_array,axis=0)
                 out = sess.run(net.output, feed_dict = {ins : im_array})
-                Out = Image.fromarray(out)
-                Image.save(join(outdir,str(i)+'.png'))
-                im += 1
+                out = out.astype(np.uint8)
+                Out = Image.fromarray(out[0,:,:])
+                Out.save(join(outdir,str(i)+'.png'))
+                i += 1
 
