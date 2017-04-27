@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>efb10e83-d2a6-430c-942e-f410045c5e04</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>main.py</StartupFile>
+    <StartupFile>testcv.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -13,7 +13,7 @@
     <Name>CityScapeLearning</Name>
     <RootNamespace>CityScapeLearning</RootNamespace>
     <IsWindowsApplication>False</IsWindowsApplication>
-    <InterpreterId>{fe465b21-97f3-43dc-937e-498eafa3d8d9}</InterpreterId>
+    <InterpreterId>{01f3e3ea-0baa-4b10-89de-9ad4c3fc6d2e}</InterpreterId>
     <InterpreterVersion>3.5</InterpreterVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -36,6 +36,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Model.py" />
+    <Compile Include="testcv.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="SegNet.py">
       <SubType>Code</SubType>
     </Compile>
