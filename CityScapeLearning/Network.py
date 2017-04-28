@@ -2342,3 +2342,69 @@ def build_enet_small_nopool(input, numlab):
                                                 )
         net.compute_output()
     return (net)
+
+def build_context_agregg(input):
+
+    aggreg = Network(input, name = 'aggreg', numlab = input.get_shape()[-1].value)
+    aggreg.variables['all'] = []
+    with tf.name_scope('Conv1'):
+        aggreg.last_layer, vars1 = helpers.conv2d_dilated(input = input,
+                                                   filters = aggreg.numlabs,
+                                                   layername = 'conv1',
+                                                   factor = 1
+                                                   )
+        aggreg.variables['all'].extend(vars1)
+    with tf.name_scope('Conv2'):
+        aggreg.last_layer, vars2 = helpers.conv2d_dilated(input = aggreg.last_layer,
+                                                   filters = aggreg.numlabs,
+                                                   layername = 'conv2',
+                                                   factor = 1
+                                                   )
+        aggreg.variables['all'].extend(vars2)
+    with tf.name_scope('Conv3'):
+        aggreg.last_layer, vars3 = helpers.conv2d_dilated(input = aggreg.last_layer,
+                                                   filters = aggreg.numlabs,
+                                                   layername = 'conv3',
+                                                   factor = 2
+                                                   )
+        aggreg.variables['all'].extend(vars3)
+    with tf.name_scope('Conv4'):
+        aggreg.last_layer, vars4 = helpers.conv2d_dilated(input = aggreg.last_layer,
+                                                   filters = aggreg.numlabs,
+                                                   layername = 'conv4',
+                                                   factor = 4
+                                                   )
+        aggreg.variables['all'].extend(vars4)
+    with tf.name_scope('Conv5'):
+        aggreg.last_layer, vars5 = helpers.conv2d_dilated(input = aggreg.last_layer,
+                                                   filters = aggreg.numlabs,
+                                                   layername = 'conv5',
+                                                   factor = 8
+                                                   )
+        aggreg.variables['all'].extend(vars5)
+    with tf.name_scope('Conv6'):
+        aggreg.last_layer, vars6 = helpers.conv2d_dilated(input = aggreg.last_layer,
+                                                   filters = aggreg.numlabs,
+                                                   layername = 'conv6',
+                                                   factor = 16
+                                                   )
+        aggreg.variables['all'].extend(vars6)
+    with tf.name_scope('Conv2'):
+        aggreg.last_layer, vars7 = helpers.conv2d_dilated(input = aggreg.last_layer,
+                                                   filters = aggreg.numlabs,
+                                                   layername = 'conv7',
+                                                   factor = 1
+                                                   )
+        aggreg.variables['all'].extend(vars7)
+    with tf.name_scope('Conv8'):
+        aggreg.last_layer, vars8 = helpers.conv2d_dilated(input = aggreg.last_layer,
+                                                   filters = aggreg.numlabs,
+                                                   layername = 'conv8',
+                                                   factor = 1,
+                                                   ksize = [1,1],
+                                                   relu = False
+                                                   )
+        aggreg.variables['all'].extend(vars8)
+    aggreg.compute_output()
+
+    return aggreg

@@ -138,6 +138,14 @@ for i in range(34,256):
 def convert2catId(labId):
     return id2catId[labId]
 
+#id to trainId
+id2trainId = {label.id : label.trainId for label in labels}
+for i in range(34,256):
+    id2trainId[i] = -1
+
+def convert2trainId(labId):
+    return id2trainId[labId]
+
 # name to label object
 name2label = {label.name: label for label in labels}
 # id to label object

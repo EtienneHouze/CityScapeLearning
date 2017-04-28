@@ -114,7 +114,7 @@ def produce_training_dir(imdir, labeldir, outdir, training_set_size, imW=640, im
             else:
                 Im.thumbnail((imW, imH))
                 Label.thumbnail((imW, imW))
-            Label = Image.eval(Label,labels.convert2catId)
+            Label = Image.eval(Label,labels.convert2trainId)
             Im.save(join(outdir, '_' + str(step) + '_im_.png'))
             Label.save(join(outdir, '_' + str(step) + '_lab_.png'))
         print(step)

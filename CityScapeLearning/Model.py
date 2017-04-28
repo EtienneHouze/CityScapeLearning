@@ -21,15 +21,17 @@ class Model:
             - trained_vars : list of variables which has already been learned by the net and wont be initialized again but restored from the checkpoint instead.
     """
 
-    def __init__(self, name, saving_dir, netbuilder, imH, imW, num_labs, last_cp = None, trained_vars = []):
+    def __init__(self, name, saving_dir, netbuilder, imH, imW, num_labs, last_cp = None, trained_vars = [], contextbuilder = None, context_vars = []):
        self.saving_dir = saving_dir
        self.name = name
        self.netbuilder = netbuilder
+       self.contextbuilder = contextbuilder
        self.imH = imH
        self.imW = imW
        self.num_labs = num_labs
        self.last_cp = last_cp
        self.trained_vars = trained_vars
+       self.context_vars = context_vars
 
 
     def train(self, train_dir, log_dir, batch_size, epochs, train_size, learning_rate, savestep = 100, trainable_vars = None):
