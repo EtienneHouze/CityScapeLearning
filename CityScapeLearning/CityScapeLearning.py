@@ -55,12 +55,14 @@ def perso_loss(logits, labs, weights):
 
 def perso_loss_v2(logits, labs, probs):
     labs_one = tf.one_hot(tf.cast(labs, dtype = tf.int32), probs.get_shape()[-1].value)
-    weights = tf.expand_dims(probs,1)
-    weights = tf.expand_dims(weights,1)
-    weights = tf.tile(weights, [1,logits.get_shape()[1].value,logits.get_shape()[2].value,1])
+    weights = tf.expand_dims(probs,0)
+    weights = tf.expand_dims(weights,0)
+    weights = tf.expand_dims(weights,0)
+    weights = 1 / tf.log(1.02 + weights)
+    weights = tf.tile(weights, [logits.get_shape()[0].value,logits.get_shape()[1].value,logits.get_shape()[2].value,1])
     softmax = tf.nn.softmax(logits)
     return -tf.reduce_mean(tf.reduce_sum(tf.multiply(tf.multiply(labs_one,
-                                                                tf.log(softmax + 1e-30)
+                                                                tf.log(softmax + 1e-10)
                                                                 ),
                                                      weights),
                                          axis=[1,2,3]

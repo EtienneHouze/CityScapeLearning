@@ -76,9 +76,7 @@ class Model:
                 helpers.image_summaries(tf.expand_dims(input=labs, axis=-1), name='labels')
                 helpers.variable_summaries(tf.cast(labs, dtype=tf.float32))
 
-            with tf.name_scope('Loss'):
-                l = perso_loss(logits=CNN.last_layer, labs=labs, weights=weigs)
-                tf.summary.scalar(name='loss', tensor=l)
+            
 
             with tf.name_scope('Learning'):
                 trainstep = None
@@ -88,9 +86,15 @@ class Model:
                     self.trained_vars = list(set(self.trained_vars))
                     for varname in trainable_vars:
                         varlist.extend(CNN.variables[varname])
+                    with tf.name_scope('Loss'):
+                        l = total_loss_v2(logits=CNN.last_layer, label=labs, probs=weigs, varslist = varlist)
+                        tf.summary.scalar(name='loss', tensor=l)
                     train_step = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss=l,                                                                global_step=global_step,
                                                                                               var_list = varlist)
                 else:
+                    with tf.name_scope('Loss'):
+                        l = perso_loss_v2(logits=CNN.last_layer, labs=labs, probs=weigs)
+                        tf.summary.scalar(name='loss', tensor=l)
                     train_step = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss=l,                                                                global_step=global_step)
 
 

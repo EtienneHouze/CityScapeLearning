@@ -548,7 +548,7 @@ def prelu(input):
 
     return (pos+neg, alphas)
 
-def bottleneck(input, filters, prelu = True, scale = 1, asym = False, kinit = [0,0.1], dropout = 0):
+def bottleneck(input, filters, Prelu = True, scale = 1, asym = False, kinit = [0,0.1], dropout = 0):
     vars = []
     with tf.name_scope('Conv1'):
         with tf.name_scope('Kernel'):
@@ -564,7 +564,7 @@ def bottleneck(input, filters, prelu = True, scale = 1, asym = False, kinit = [0
                              filter = k1
                              )
     with tf.name_scope('Normalization1'):
-        mean, var = tf.nn.moments(x = output, axes = [-1])
+        mean, var = tf.nn.moments(x = output, axes = [-1],keep_dims = True)
         output = (output - mean) / ( var + 1e-30)
     with tf.name_scope('Activation1'):
         output, alpha1 = prelu(output)
@@ -579,7 +579,7 @@ def bottleneck(input, filters, prelu = True, scale = 1, asym = False, kinit = [0
                                  )
                 vars.append(k2)
             output = tf.nn.atrous_conv2d(value = output,
-                                         rate = factor,
+                                         rate = scale,
                                          padding = 'SAME',
                                          filters = k2
                                          )
@@ -598,17 +598,17 @@ def bottleneck(input, filters, prelu = True, scale = 1, asym = False, kinit = [0
                 vars.append(k2_1)
                 vars.append(k2_2)
             output = tf.nn.atrous_conv2d(value = output,
-                                         rate = factor,
+                                         rate = scale,
                                          padding = 'SAME',
                                          filters = k2_1
                                          )
             output = tf.nn.atrous_conv2d(value = output,
-                                         rate = factor,
+                                         rate = scale,
                                          padding = 'SAME',
                                          filters = k2_2
                                          )
     with tf.name_scope('Normalization2'):
-            mean, var = tf.nn.moments(x = output, axes = [-1])
+            mean, var = tf.nn.moments(x = output, axes = [-1], keep_dims = True)
             output = (output - mean) / ( var + 1e-30)
     with tf.name_scope('Activation2'):
             output, alpha2 = prelu(output)
@@ -624,7 +624,7 @@ def bottleneck(input, filters, prelu = True, scale = 1, asym = False, kinit = [0
         output = tf.nn.conv2d(input = output,
                              strides = [1,1,1,1],
                              padding = 'SAME',
-                             filter = k1
+                             filter = k3
                              )
     if dropout > 0 :
         with tf.name_scope('Dropout'):
@@ -639,7 +639,7 @@ def bottleneck(input, filters, prelu = True, scale = 1, asym = False, kinit = [0
                            )
     with tf.name_scope('Fusion'):
         output = tf.add(output,input)
-    if (prelu):
+    if (Prelu):
         with tf.name_scope('Activation3'):
             output, alpha3 = prelu(output)
             vars.append(alpha3)
