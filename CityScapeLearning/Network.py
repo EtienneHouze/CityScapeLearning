@@ -2234,91 +2234,111 @@ def build_upscaled_nopool_noskip_deeper(input,numlab):
 
     return net
 
-def build_upscaled_nopool_noskip_deeper_dropouts(input,numlab):
+def build_enet_small_nopool(input, numlab):
 
-    net = Network(input,'net',numlab)
-    net.variables['32s'] = []
+    net = Network(input, name = 'net', numlab = numlab)
+    net.variables['all'] = []
+    
+    with tf.name_scope('Preprocess'):
+        pre,prevar = helpers.conv2d_dilated(input = input,
+                                            layername = 'preproc',
+                                            filters = 8,
+                                            factor = 2,
+                                            bias = False
+                                            )
+        net.variables['all'].extend(prevar)
 
-    with tf.name_scope('Conv0'):
-        with tf.name_scope('_1'):
-            conv0_1, conv0_1vars = helpers.conv2d(input = net.input,
-                                        filters = 32,
-                                        layername='Conv0_1'
-                                        )
-        with tf.name_scope('_2'):
-            conv0_2, conv0_2vars = helpers.conv2d(input = conv0_1,
-                                        filters = 64,
-                                        layername='Conv0_1'
-                                        )
-        conv0_2 = tf.layers.dropout(conv0_2)
-        net.variables['32s'].extend(conv0_1vars)
-        net.variables['32s'].extend(conv0_2vars)
-    with tf.name_scope('Conv1'):
-        with tf.name_scope('_1'):
-            conv1_1,conv1_1vars = helpers.conv2d_dilated(input = conv0_2,
-                                                         filters = 128,
-                                                         layername = 'Conv1_1',
-                                                         factor = 2
-                                                         )
-        with tf.name_scope('_2'):
-            conv1_2, conv1_2vars = helpers.conv2d_dilated(input = conv1_1,
-                                                          filters = 128,
-                                                          layername = 'Conv1_2',
-                                                          factor = 2
-                                                          )
-        conv1_2 = tf.layers.dropout(conv1_2)
-        net.variables['32s'].extend(conv1_1vars)
-        net.variables['32s'].extend(conv1_2vars)
-    with tf.name_scope('Conv2'):
-        with tf.name_scope('_1'):
-            conv2_1,conv2_1vars = helpers.conv2d_dilated(input = conv1_2,
-                                                         filters = 256,
-                                                         layername = 'Conv2_1',
-                                                         factor = 4
-                                                         )
-        with tf.name_scope('_2'):
-            conv2_2, conv2_2vars = helpers.conv2d_dilated(input = conv2_1,
-                                                          filters = 256,
-                                                          layername = 'Conv2_2',
-                                                          factor = 4
-                                                          )
-        conv2_2 = tf.layers.dropout(conv2_2)
-        net.variables['32s'].extend(conv2_1vars)
-        net.variables['32s'].extend(conv2_2vars)
-    with tf.name_scope('Conv3'):
-        with tf.name_scope('_1'):
-                conv3_1,conv3_1vars = helpers.conv2d_dilated(input = conv2_2,
-                                                             filters = 256,
-                                                             layername = 'Conv3_1',
-                                                             factor = 8
-                                                             )
-        with tf.name_scope('_2'):
-            conv3_2, conv3_2vars = helpers.conv2d_dilated(input = conv3_1,
-                                                            filters = 512,
-                                                            layername = 'Conv3_2',
-                                                            factor = 8
-                                                            )
-        conv3_2 = tf.layers.dropout(conv3_2)
-        net.variables['32s'].extend(conv3_1vars)
-        net.variables['32s'].extend(conv3_2vars)
-    with tf.name_scope('Conv_4'):
-        with tf.name_scope('_1'):
-            conv4_1,conv4_1vars = helpers.conv2d_dilated(input = conv3_2,
-                                                         filters = 512,
-                                                         layername = 'Conv4_1',
-                                                         factor = 16
-                                                         )
-        with tf.name_scope('_2'):
-            conv4_2, conv4_2vars = helpers.conv2d(input = conv4_1,
-                                                  filters = net.numlabs,
-                                                  layername = 'Conv4_2',
-                                                  ksize = [5,5],
-                                                  relu = False
-                                                  )
-        net.variables['32s'].extend(conv4_1vars)
-        net.variables['32s'].extend(conv4_2vars)
+    with tf.name_scope('Stage_1'):
 
-    net.last_layer = conv4_2
-    net.compute_output()
+        with tf.name_scope('BNeck_1'):
+            bneck11,bneck11vars = helpers.bottleneck(input = pre,
+                                                    filters = 32,
+                                                    scale = 2
+                                                    )
+            net.variables['all'].extend(bneck11vars)
+        with tf.name_scope('BNeck_2'):
+            bneck12,bneck12vars = helpers.bottleneck(input = bneck11,
+                                                    filters = 64,
+                                                    scale = 2
+                                                    )
+            net.variables['all'].extend(bneck12vars)
+        with tf.name_scope('BNeck_3'):
+            bneck13,bneck13vars = helpers.bottleneck(input = bneck12,
+                                                    filters = 64,
+                                                    scale = 2
+                                                    )
+            net.variables['all'].extend(bneck13vars)
+        with tf.name_scope('BNeck_4'):
+            bneck14,bneck14vars = helpers.bottleneck(input = bneck13,
+                                                    filters = 64,
+                                                    scale = 2
+                                                    )
+            net.variables['all'].extend(bneck14vars)
 
-    return net
+    with tf.name_scope('Stage_2'):
+            
+        with tf.name_scope('BNeck0'):
+            bneck20,bneck20vars = helpers.bottleneck(input = bneck14,
+                                                        filters = 128,
+                                                        scale = 4
+                                                        )
+            net.variables['all'].extend(bneck20vars)
+        with tf.name_scope('BNeck1'):
+            bneck21,bneck21vars = helpers.bottleneck(input = bneck20,
+                                                        filters = 128,
+                                                        scale = 4
+                                                        )
+            net.variables['all'].extend(bneck21vars)
+        with tf.name_scope('BNeck2'):
+            bneck22,bneck22vars = helpers.bottleneck(input = bneck21,
+                                                        filters = 128,
+                                                        scale = 8
+                                                        )
+            net.variables['all'].extend(bneck22vars)
+        with tf.name_scope('BNeck3'):
+            bneck23,bneck23vars = helpers.bottleneck(input = bneck22,
+                                                        filters = 128,
+                                                        scale = 4,
+                                                        asym = True
+                                                        )
+            net.variables['all'].extend(bneck23vars)
+        with tf.name_scope('BNeck4'):
+            bneck24,bneck24vars = helpers.bottleneck(input = bneck23,
+                                                        filters = 128,
+                                                        scale = 8
+                                                        )
+            net.variables['all'].extend(bneck24vars)
+        with tf.name_scope('BNeck5'):
+            bneck25,bneck25vars = helpers.bottleneck(input = bneck24,
+                                                        filters = 128,
+                                                        scale = 4
+                                                        )
+            net.variables['all'].extend(bneck25vars)
+        with tf.name_scope('BNeck6'):
+            bneck26,bneck26vars = helpers.bottleneck(input = bneck25,
+                                                        filters = 128,
+                                                        scale = 16
+                                                        )
+            net.variables['all'].extend(bneck26vars)
+        with tf.name_scope('BNeck7'):
+            bneck27,bneck27vars = helpers.bottleneck(input = bneck26,
+                                                        filters = 128,
+                                                        scale = 4,
+                                                        asym = True
+                                                        )
+            net.variables['all'].extend(bneck27vars)
+        with tf.name_scope('BNeck8'):
+            bneck28,bneck28vars = helpers.bottleneck(input = bneck27,
+                                                        filters = 128,
+                                                        scale = 32
+                                                        )
+            net.variables['all'].extend(bneck28vars)
+    with tf.name_scope('Decoder'):
+        net.last_layer,decvars = helpers.conv2d(input = bneck28,
+                                                filters = net.numlabs,
+                                                layername = 'decoder',
+                                                relu = False,
+                                                bias = False
+                                                )
+        net.compute_output()
+    return (net)
