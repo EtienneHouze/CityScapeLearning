@@ -187,6 +187,7 @@ class Model:
                 print("==============================")
                 print("     Loss is : " + str(test_loss))
                 IOU = np.zeros((self.num_labs))
+                count_lab = np.zeros((self.num_labs))
                 acc = np.zeros((self.num_labs))
                 for lab_ind in range(self.num_labs):
                     TP = 0.0
@@ -203,10 +204,14 @@ class Model:
                                 FN +=1
                             else :
                                 TN += 1
-                    IOU[lab_ind] = TP/(TP+FP+FN)
+                    if (TP+FP+FN > 0):
+                        IOU[lab_ind] = TP/(TP+FP+FN)
+                    else:
+                        IOU[lab_ind] = 0
+                    count_lab[lab_ind] = TP + FN
                     acc[lab_ind] = (TP + TN) / (TP+TN+FP+FN)
                     print('For label' + str(lab_ind) + ', IOU is ' +str(IOU[lab_ind]))
-                IOU_mean = np.mean(IOU)
+                IOU_mean = np.average(IOU, weights = count_lab)
                 acc_mean = np.mean(acc)
                 tot_IOU[i] = IOU_mean
                 tot_acc[i] = acc_mean

@@ -2206,7 +2206,7 @@ def build_upscaled_nopool_noskip_deeper(input,numlab):
                                                              )
         with tf.name_scope('_2'):
             conv3_2, conv3_2vars = helpers.conv2d_dilated(input = conv3_1,
-                                                            filters = 512,
+                                                            filters = 256,
                                                             layername = 'Conv3_2',
                                                             factor = 8
                                                             )
